@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f5f7">
 <title>Finanzas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%E2%9A%BD%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -162,7 +163,6 @@ textarea.inp{padding:12px 14px;min-height:80px}
       <label class="field"><span>Contraseña</span><input class="inp" id="login-pass" type="password" autocomplete="current-password" required></label>
       <div id="login-err" class="alert bad hidden"></div>
       <button class="btn btn-primary btn-big" id="login-btn" type="submit">Entrar</button>
-      <button class="btn-link" type="button" onclick="olvideClave()">Olvidé mi contraseña</button>
     </form>
     <div class="version" id="login-version"></div>
   </div>
@@ -703,9 +703,9 @@ textarea.inp{padding:12px 14px;min-height:80px}
 //  FINANZAS PAPÁ — app liviana basada en DB FINANCE (app de Miguel)
 //  Parte 1: base (login, cuentas, guardado) + Combustible completo.
 // ══════════════════════════════════════════════════════════════════
-const APP_VERSION = 'v1.13.0';
-const APP_VERSION_DATE = '11/10/26 - 23:48'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'v1.13.0: pagos e ingresos fijos con «Monto fijo» o «Monto variable» (el variable se estima con el último monto registrado y al pagarlo pide el monto real); «Cómo vas» con barras del gasto de cada día, línea de ingresos y línea de gastos, disponible y estimado al cierre; gráfico de combustible con periodos (semana, este mes, 3 y 6 meses, este año, todo); la lista de recargas muestra las últimas 5; los recaudos del histórico ahora se descuentan de la deuda de la instalación GNV (botón «Descontarlos ahora» para los ya importados).';
+const APP_VERSION = 'v1.13.1';
+const APP_VERSION_DATE = '12/10/26 - 00:10'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'v1.13.1: se quitó «Olvidé mi contraseña» de la pantalla de ingreso y la pestaña del navegador tiene el ícono ⚽.';
 
 // ── Pega aquí la configuración web del Firebase de tu papá ──
 // (Firebase → Configuración del proyecto → Tus apps → Web). No es secreta:
@@ -876,13 +876,6 @@ async function entrar(){
     err.textContent=m[e.code]||'No se pudo entrar. Intenta de nuevo.'; err.classList.remove('hidden');
   }
   btn.disabled=false; btn.textContent='Entrar';
-}
-async function olvideClave(){
-  const email=document.getElementById('login-email').value.trim();
-  const err=document.getElementById('login-err');
-  if(!email){ err.textContent='Escribe tu correo arriba y vuelve a tocar «Olvidé mi contraseña».'; err.classList.remove('hidden'); return; }
-  try{ await firebase.auth().sendPasswordResetEmail(email); toast('Te enviamos un correo para cambiar la contraseña.'); }
-  catch(e){ err.textContent='No se pudo enviar el correo. Revisa que esté bien escrito.'; err.classList.remove('hidden'); }
 }
 async function salir(){
   if(!await confirmar('¿Cerrar sesión?','Tendrás que volver a entrar con tu correo y contraseña.','Cerrar sesión')) return;
