@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f5f7">
-<title>Finanzas Papá</title>
+<title>Finanzas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -152,7 +152,7 @@ textarea.inp{padding:12px 14px;min-height:80px}
 <div id="login-screen" class="center-screen hidden">
   <div class="box">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg></div>
-    <h1 style="font-size:28px;font-weight:800;letter-spacing:-.5px">Finanzas Papá</h1>
+    <h1 style="font-size:28px;font-weight:800;letter-spacing:-.5px">Finanzas</h1>
     <p class="muted" style="margin:4px 0 18px">Ingresa con tu correo y contraseña.</p>
     <form class="form" id="login-form" onsubmit="event.preventDefault();entrar()">
       <label class="field"><span>Correo</span><input class="inp" id="login-email" type="email" autocomplete="username" required></label>
@@ -673,9 +673,9 @@ textarea.inp{padding:12px 14px;min-height:80px}
 //  FINANZAS PAPÁ — app liviana basada en DB FINANCE (app de Miguel)
 //  Parte 1: base (login, cuentas, guardado) + Combustible completo.
 // ══════════════════════════════════════════════════════════════════
-const APP_VERSION = 'v1.10.1';
-const APP_VERSION_DATE = '11/10/26 - 22:28'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'v1.10.1: conectada al proyecto Firebase financepapa-8d739 (sin cambios de funciones).';
+const APP_VERSION = 'v1.10.2';
+const APP_VERSION_DATE = '11/10/26 - 22:34'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'v1.10.2: el nombre visible de la app pasa a «Finanzas» (pestaña del navegador, inicio de sesión y copia JSON); las copias antiguas se siguen pudiendo restaurar.';
 
 // ── Pega aquí la configuración web del Firebase de tu papá ──
 // (Firebase → Configuración del proyecto → Tus apps → Web). No es secreta:
@@ -2175,12 +2175,12 @@ function nombreDispositivo(){ const u=navigator.userAgent||''; return /iPhone|iP
 
 // ══ EXPORTAR JSON — copia de seguridad de todos los datos ══
 function exportarJSON(){
-  const datos={app:'Finanzas Papá', version:APP_VERSION, exportado:ahoraLimaISO()+' (hora de Lima)', datos:{}};
+  const datos={app:'Finanzas', version:APP_VERSION, exportado:ahoraLimaISO()+' (hora de Lima)', datos:{}};
   ['cuentas','movimientos','recargas','km','mantenimientos','ajustes','frecuentes','deudas'].forEach(c=>datos.datos[c]=state[c]);
   const txt=JSON.stringify(datos,null,2);
   try{
     const url=URL.createObjectURL(new Blob([txt],{type:'application/json'}));
-    const a=document.createElement('a'); a.href=url; a.download='finanzas_papa_'+hoyLima()+'.json';
+    const a=document.createElement('a'); a.href=url; a.download='finanzas_'+hoyLima()+'.json';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
     toast('Respaldo descargado: '+a.download);
@@ -2342,13 +2342,13 @@ function leerRestaurar(inp){
     const pv=document.getElementById('rest-preview');
     try{
       const j=JSON.parse(e.target.result);
-      if(!j || j.app!=='Finanzas Papá' || !j.datos || !Array.isArray(j.datos.cuentas)) throw new Error('formato');
+      if(!j || !['Finanzas','Finanzas Papá'].includes(j.app) || !j.datos || !Array.isArray(j.datos.cuentas)) throw new Error('formato');
       restaurarDatos=j.datos;
       const n=c=>(j.datos[c]||[]).length;
       pv.innerHTML=`<div class="calc"><b>${esc(f.name)}</b><br>Copia del ${esc(j.exportado||'—')}<br>${n('cuentas')} cuentas · ${n('movimientos')} movimientos · ${n('recargas')} recargas · ${n('km')} lecturas de km · ${n('deudas')} préstamos · ${n('frecuentes')} fijos</div>
         <div class="alert warn" style="margin-top:10px">Esto <b>reemplaza</b> todo lo que hay ahora en la app por el contenido de la copia.</div>`;
       document.getElementById('rest-ok').disabled=false;
-    }catch(err){ restaurarDatos=null; pv.innerHTML='<div class="alert bad">Este archivo no es una copia de Finanzas Papá (usa el que descarga «Exportar JSON»).</div>'; document.getElementById('rest-ok').disabled=true; }
+    }catch(err){ restaurarDatos=null; pv.innerHTML='<div class="alert bad">Este archivo no es una copia de esta app (usa el que descarga «Exportar JSON»).</div>'; document.getElementById('rest-ok').disabled=true; }
   };
   rd.readAsText(f);
 }
