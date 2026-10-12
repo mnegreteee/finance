@@ -78,6 +78,9 @@ nav.tabs button.on{color:var(--accent)}
 .seg{display:flex;background:#e6e7eb;border-radius:12px;padding:3px;gap:2px}
 .seg button{flex:1;min-height:44px;border:none;border-radius:9px;background:none;font-size:15px;font-weight:600;color:var(--text2)}
 .seg button.on{background:var(--bg2);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.periodos{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.periodos button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--border2);background:var(--bg2);font-size:14px;font-weight:600;color:var(--text2)}
+.periodos button.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .kpi{padding:14px}
@@ -202,6 +205,7 @@ textarea.inp{padding:12px 14px;min-height:80px}
       <div id="comb-gnv"></div>
       <div class="card pad" id="comb-grafico-card">
         <div class="seg" id="comb-chart-seg"></div>
+        <div class="periodos" id="comb-chart-per" role="group" aria-label="Periodo del gráfico"></div>
         <div class="chart-box"><canvas id="comb-chart" aria-label="Gráfico de recargas" role="img"></canvas></div>
         <div class="muted" id="comb-chart-nota" style="margin-top:6px"></div>
       </div>
@@ -480,6 +484,8 @@ textarea.inp{padding:12px 14px;min-height:80px}
     <div class="form">
       <div class="seg" id="fijo-tipo"><button type="button" data-v="pago" onclick="fijoSet('tipo','pago')">Pago</button><button type="button" data-v="ingreso" onclick="fijoSet('tipo','ingreso')">Ingreso</button></div>
       <label class="field"><span>Nombre</span><input class="inp" id="fijo-nombre" type="text"></label>
+      <div class="field"><span>¿El monto es siempre igual?</span><div class="seg" id="fijo-modalidad"><button type="button" data-v="fijo" onclick="fijoSet('modalidad','fijo')">Monto fijo</button><button type="button" data-v="variable" onclick="fijoSet('modalidad','variable')">Monto variable</button></div>
+        <div class="muted" id="fijo-modalidad-nota" style="font-size:13px;margin-top:6px"></div></div>
       <div class="field"><span>Moneda</span><div class="seg" id="fijo-moneda"><button type="button" data-v="PEN" onclick="fijoSet('moneda','PEN')">Soles S/</button><button type="button" data-v="USD" onclick="fijoSet('moneda','USD')">Dólares $</button></div></div>
       <div class="grid2">
         <label class="field"><span id="fijo-monto-lbl">Monto</span><input class="inp num" id="fijo-monto" type="text" inputmode="decimal" placeholder="0.00"></label>
@@ -697,9 +703,9 @@ textarea.inp{padding:12px 14px;min-height:80px}
 //  FINANZAS PAPÁ — app liviana basada en DB FINANCE (app de Miguel)
 //  Parte 1: base (login, cuentas, guardado) + Combustible completo.
 // ══════════════════════════════════════════════════════════════════
-const APP_VERSION = 'v1.12.0';
-const APP_VERSION_DATE = '11/10/26 - 23:33'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'v1.12.0: en Combustible → GNV, tarjeta «Deuda de la instalación GNV» con deuda total, pagado y falta (barra y recargas estimadas que faltan); el monto total se escribe y edita ahí mismo, con opción de descontar los recaudos que ya están en la app; desvincular conserva la deuda en préstamos.';
+const APP_VERSION = 'v1.13.0';
+const APP_VERSION_DATE = '11/10/26 - 23:48'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'v1.13.0: pagos e ingresos fijos con «Monto fijo» o «Monto variable» (el variable se estima con el último monto registrado y al pagarlo pide el monto real); «Cómo vas» con barras del gasto de cada día, línea de ingresos y línea de gastos, disponible y estimado al cierre; gráfico de combustible con periodos (semana, este mes, 3 y 6 meses, este año, todo); la lista de recargas muestra las últimas 5; los recaudos del histórico ahora se descuentan de la deuda de la instalación GNV (botón «Descontarlos ahora» para los ya importados).';
 
 // ── Pega aquí la configuración web del Firebase de tu papá ──
 // (Firebase → Configuración del proyecto → Tus apps → Web). No es secreta:
@@ -717,7 +723,7 @@ const COLECCIONES = ['cuentas','movimientos','recargas','km','mantenimientos','a
 
 // ══ ESTADO ══
 const state = {cuentas:[], movimientos:[], recargas:[], km:[], mantenimientos:[], actividad:[], ajustes:[], frecuentes:[], deudas:[]};
-const ui = {pagina:'disponible', tipoComb:'gnv', chartIdx:0, verTodas:false, hkmFiltro:'todo', gastosMes:null, gastosFiltro:'todos'};
+const ui = {pagina:'disponible', tipoComb:'gnv', chartIdx:0, chartPer:'todo', verTodas:false, hkmFiltro:'todo', gastosMes:null, gastosFiltro:'todos'};
 let charts = {comb:null, hkm:null};
 
 // ══ UTILIDADES ══
@@ -1273,30 +1279,81 @@ function gsActualizar(){
   gsOrigen(gas);
   gsTendencia();
 }
-function gsComoVas(){
-  const el=document.getElementById('gs-como'), P=gsProyeccion(ui.gastosMes);
-  const R=P.esAct?gsRecomendado():null, pres=R&&R.presupuesto>0?R.presupuesto:null;
-  const maxV=Math.max(1, P.cierre, pres||0, P.cum[P.D])*1.12;
-  const W=320,H=150,X=k=>6+(k/P.D)*(W-14),Y=v=>H-12-(v/maxV)*(H-30);
-  const real=[]; const fin=P.esAct?P.d:P.D; for(let k=0;k<=fin;k++) real.push(`${X(k).toFixed(1)},${Y(P.cum[k]).toFixed(1)}`);
-  let svg=`<line x1="0" y1="${H-12}" x2="${W}" y2="${H-12}" stroke="var(--bg4)"/>`;
-  if(pres) svg+=`<line x1="0" y1="${Y(pres).toFixed(1)}" x2="${W}" y2="${Y(pres).toFixed(1)}" stroke="var(--red)" stroke-width="1.2" stroke-dasharray="4 4"/><text x="4" y="${(Y(pres)-6).toFixed(1)}" font-size="11" fill="var(--red)">Presupuesto ${dinero(pres,'PEN')}</text>`;
-  svg+=`<polyline points="${real.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+// ── «Cómo vas»: gasto de cada día (barras) + línea de ingresos y línea de gastos acumulados (soles) ──
+function gsDatosComoVas(mk){
+  const P=gsProyeccion(mk), {D,d}=P;
+  const delMes=state.movimientos.filter(x=>(x.date||'').slice(0,7)===mk&&x.currency!=='USD');
+  const diaG=Array(D+1).fill(0), nG=Array(D+1).fill(0), diaI=Array(D+1).fill(0);
+  delMes.forEach(x=>{ const k=parseInt(x.date.slice(8,10),10); if(!(k>=1&&k<=D)) return;
+    if(x.type==='expense'){ diaG[k]+=num(x.amount)||0; nG[k]++; }
+    else if(x.type==='income'&&!x.deudaId) diaI[k]+=num(x.amount)||0; });
+  const cumI=Array(D+1).fill(0); for(let k=1;k<=D;k++) cumI[k]=cumI[k-1]+diaI[k];
+  // proyección de ingresos: lo ya recibido + ingresos fijos (soles) que faltan, en su día
+  let proyI=null, porLlegar=0;
   if(P.esAct){
-    const pj=[]; for(let k=P.d;k<=P.D;k++) pj.push(`${X(k).toFixed(1)},${Y(P.proy[k]).toFixed(1)}`);
-    svg+=`<polyline points="${pj.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="6 5" stroke-linecap="round"/>
-      <circle cx="${X(P.d).toFixed(1)}" cy="${Y(P.actual).toFixed(1)}" r="5" fill="var(--accent)"/><text x="${Math.min(W-30,X(P.d)+6).toFixed(1)}" y="${Math.min(H-16,Y(P.actual)+17).toFixed(1)}" font-size="11" fill="var(--text2)">Hoy</text>
-      <circle cx="${X(P.D).toFixed(1)}" cy="${Y(P.cierre).toFixed(1)}" r="4" fill="var(--bg2)" stroke="var(--accent)" stroke-width="2"/>`;
+    const extra=Array(D+1).fill(0);
+    fijosActivos('ingreso').filter(f=>f.moneda!=='USD').forEach(f=>{ const e=estadoFijo(f,mk); if(e.estado!=='pendiente') return; const m=montoEstimadoFijo(f); if(!(m>0)) return; extra[Math.max(d,diaFijo(f,mk))]+=m; porLlegar+=m; });
+    proyI=Array(D+1).fill(null); let acc=cumI[d]; for(let k=d;k<=D;k++){ if(k>d) acc+=diaI[k]; acc+=extra[k]; proyI[k]=acc; }
   }
-  let pie;
-  if(P.esAct){
-    const dif=pres?pres-P.cierre:null;
-    pie=`<div class="row" style="margin-top:8px"><span style="font-size:15px">Cierre estimado del mes</span><span class="mono" style="font-size:17px">${dinero(P.cierre,'PEN')}</span></div>`
-      +(dif!==null?`<div style="font-size:14px;font-weight:600;margin-top:4px;color:${dif>=0?'var(--green)':'var(--amber)'}">${dif>=0?`Cerrarías ${dinero(dif,'PEN')} por debajo del presupuesto`:`Cerrarías ${dinero(-dif,'PEN')} por encima del presupuesto`}</div>`:'<div class="muted" style="font-size:13px;margin-top:4px">Registra tus ingresos para ver el presupuesto.</div>');
-  } else if(P.d===0) pie=`<div class="muted" style="margin-top:8px">Mes futuro: solo cuotas o gastos ya programados (${dinero(P.cum[P.D],'PEN')}).</div>`;
-  else pie=`<div class="row" style="margin-top:8px"><span style="font-size:15px">Gastaste en el mes</span><span class="mono" style="font-size:17px">${dinero(P.cum[P.D],'PEN')}</span></div>`;
-  el.innerHTML=`<div class="row"><span style="font-size:17px;font-weight:700">Cómo vas</span><span class="muted" style="font-size:13px">acumulado del mes · soles</span></div>
-    <svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gasto acumulado del mes${P.esAct?' con proyección al cierre':''}" style="margin-top:10px;display:block">${svg}</svg>${pie}`;
+  return {...P, diaG, nG, diaI, cumI, proyI, porLlegar};
+}
+function gsComoVas(){
+  const el=document.getElementById('gs-como'), C=gsDatosComoVas(ui.gastosMes); GS.cv=C; GS.diaSel=null;
+  const {D,d,esAct}=C, fin=esAct?d:D;
+  const finI=esAct?C.proyI[D]:C.cumI[D], finG=esAct?C.cierre:C.cum[D];
+  const maxV=Math.max(1, finI, finG, C.cumI[D], C.cum[D])*1.1, maxDia=Math.max(1,...C.diaG.slice(1));
+  const W=320,H=190,B=H-20,top=10,BH=46, X=k=>8+((k-0.5)/D)*(W-16), Y=v=>B-(v/maxV)*(B-top), YB=v=>B-(v/maxDia)*BH;
+  const bw=Math.max(2,(W-16)/D*0.64);
+  let svg=`<line x1="0" y1="${B}" x2="${W}" y2="${B}" stroke="var(--bg4)"/>`;
+  // barras: gasto de cada día
+  for(let k=1;k<=D;k++){ if(C.diaG[k]<=0) continue; const y=YB(C.diaG[k]);
+    svg+=`<rect class="cv-bar" data-k="${k}" x="${(X(k)-bw/2).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${(B-y).toFixed(1)}" rx="1.5" fill="var(--red)" opacity="${esAct&&k===d?0.55:0.22}"/>`; }
+  const linea=(arr,a,b,col,dash)=>{ const pts=[]; for(let k=a;k<=b;k++) if(arr[k]!=null) pts.push(`${X(k).toFixed(1)},${Y(arr[k]).toFixed(1)}`); return pts.length>1?`<polyline class="cv-${dash?'proy':'real'}" points="${pts.join(' ')}" fill="none" stroke="${col}" stroke-width="${dash?2.2:3}" ${dash?'stroke-dasharray="6 5"':''} stroke-linejoin="round" stroke-linecap="round"/>`:''; };
+  const cumI0=[0,...C.cumI.slice(1)], cumG0=[0,...C.cum.slice(1)];
+  if(fin>=1){ svg+=linea(cumI0,1,fin,'var(--green)',false); svg+=linea(cumG0,1,fin,'var(--red)',false); }
+  if(esAct){
+    svg+=linea(C.proyI,d,D,'var(--green)',true)+linea(C.proy,d,D,'var(--red)',true);
+    svg+=`<line x1="${X(d).toFixed(1)}" y1="${top}" x2="${X(d).toFixed(1)}" y2="${B}" stroke="var(--text3)" stroke-width="1" stroke-dasharray="2 3"/>
+      <text x="${Math.min(W-26,X(d)+4).toFixed(1)}" y="${top+10}" font-size="11" fill="var(--text2)">Hoy</text>
+      <circle cx="${X(d).toFixed(1)}" cy="${Y(C.cumI[d]).toFixed(1)}" r="4.5" fill="var(--green)"/>
+      <circle cx="${X(d).toFixed(1)}" cy="${Y(C.actual).toFixed(1)}" r="4.5" fill="var(--red)"/>`;
+  }
+  // eje de días
+  [1,Math.round(D/3),Math.round(2*D/3),D].forEach(k=>{ svg+=`<text x="${X(k).toFixed(1)}" y="${H-5}" font-size="10" text-anchor="middle" fill="var(--text3)">${k}</text>`; });
+  // zonas para tocar cada día
+  for(let k=1;k<=D;k++) svg+=`<rect x="${(8+((k-1)/D)*(W-16)).toFixed(1)}" y="0" width="${((W-16)/D).toFixed(1)}" height="${B}" fill="transparent" style="cursor:pointer" onclick="gsDiaSel(${k})"/>`;
+  const disp=C.cumI[D]-C.cum[D], hayIng=C.cumI[D]>0.004||C.porLlegar>0.004;
+  const fila=(t,v,col,b)=>`<div class="row" style="padding:5px 0;${b?'border-top:1px solid var(--border);margin-top:4px;padding-top:9px':''}"><span style="font-size:15px${b?';font-weight:700':''}">${t}</span><span class="mono" style="font-size:${b?18:16}px;color:${col};white-space:nowrap">${v}</span></div>`;
+  let pie=fila('Ingresos del mes','+ '+dinero(C.cumI[D],'PEN'),'var(--green)')
+    +fila('Gastos del mes',dinero(-C.cum[D],'PEN'),'var(--red)')
+    +fila('Disponible <span class="muted" style="display:block;font-size:12px;font-weight:500">ingresos − gastos</span>',dinero(disp,'PEN'),disp<-0.004?'var(--red)':'var(--green)',true);
+  if(esAct){
+    const queda=finI-finG;
+    pie+=`<div style="margin-top:8px;font-size:14px;background:var(--bg3);border-radius:10px;padding:10px 12px">Cierre estimado del mes: gastos ≈ <b class="mono">${dinero(finG,'PEN')}</b>${C.porLlegar>0.004?` · ingresos ≈ <b class="mono">${dinero(finI,'PEN')}</b> (con lo que falta llegar)`:''}.<br><span style="font-weight:700;color:${queda<-0.004?'var(--red)':'var(--green)'}">${queda<-0.004?`Te faltarían ${dinero(-queda,'PEN')}`:`Te quedarían ${dinero(queda,'PEN')}`}</span></div>`;
+  } else if(d===0) pie+=`<div class="muted" style="font-size:13px;margin-top:6px">Mes futuro: solo cuotas o movimientos ya programados.</div>`;
+  if(!hayIng) pie+=`<div class="muted" style="font-size:13px;margin-top:6px">Registra tus ingresos (o agrégalos en «Pagos e ingresos fijos») para ver la línea de ingresos.</div>`;
+  const ley=(col,t,bar)=>`<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:${bar?8:14}px;height:${bar?10:3}px;border-radius:2px;background:${col};${bar?'opacity:.35':''}"></span>${t}</span>`;
+  el.innerHTML=`<div class="row"><span style="font-size:17px;font-weight:700">Cómo vas</span><span class="muted" style="font-size:13px">soles</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--text2);margin-top:8px">${ley('var(--green)','Ingresos')}${ley('var(--red)','Gastos')}${ley('var(--red)','Gasto de cada día',true)}${esAct?'<span class="muted">· punteado = estimado</span>':''}</div>
+    <svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Ingresos y gastos acumulados del mes, con el gasto de cada día" style="margin-top:8px;display:block">${svg}</svg>
+    <div id="gs-como-info" style="font-size:14px;min-height:20px;margin:4px 0 6px"></div>${pie}`;
+  gsDiaInfo();
+}
+function gsDiaSel(k){ GS.diaSel=GS.diaSel===k?null:k; gsDiaInfo(); }
+function gsDiaInfo(){
+  const C=GS.cv, el=document.getElementById('gs-como-info'); if(!C||!el) return;
+  document.querySelectorAll('#gs-como .cv-bar').forEach(r=>{ const k=+r.dataset.k; r.setAttribute('opacity', k===GS.diaSel?0.75:(GS.diaSel==null&&C.esAct&&k===C.d?0.55:0.22)); });
+  const {y,m}=mesInfo(ui.gastosMes), nomDia=k=>{ const dw=DIAS_L[new Date(Date.UTC(y,m-1,k)).getUTCDay()]; return dw[0].toUpperCase()+dw.slice(1)+' '+k; };
+  let k=GS.diaSel, h;
+  if(k!=null){
+    h=`<b>${nomDia(k)}:</b> ${C.diaG[k]>0?`gastaste <span class="mono" style="color:var(--red)">${dinero(C.diaG[k],'PEN')}</span> (${C.nG[k]} mov.)`:'sin gastos'}${C.diaI[k]>0?` · llegó <span class="mono" style="color:var(--green)">+ ${dinero(C.diaI[k],'PEN')}</span>`:''}`;
+  } else if(C.esAct){
+    h=`Hoy llevas gastado <span class="mono" style="color:var(--red)">${dinero(C.diaG[C.d],'PEN')}</span> · <span class="muted">toca una barra para ver otro día</span>`;
+  } else if(C.d>0){
+    let mx=0; for(let i=1;i<=C.D;i++) if(C.diaG[i]>C.diaG[mx]||!mx) mx=i;
+    h=C.diaG[mx]>0?`Día que más gastaste: <b>${nomDia(mx)}</b> · <span class="mono" style="color:var(--red)">${dinero(C.diaG[mx],'PEN')}</span>`:'<span class="muted">Sin gastos este mes.</span>';
+  } else h='';
+  el.innerHTML=h;
 }
 function gsLista(movs){
   const el=document.getElementById('gs-lista'), hoy=hoyLima(), ayer=sumarDias(hoy,-1);
@@ -1780,6 +1837,15 @@ async function borrarCuenta(){
 //  Doc: {id, tipo:'pago'|'ingreso', nombre, monto, moneda, dia, cuenta, cat,
 //        registros:{'AAAA-MM': movId}, omitidos:{'AAAA-MM': true}}
 // ══════════════════════════════════════════════════════════════════
+// modalidad: 'fijo' (siempre el mismo monto) o 'variable' (cambia cada mes: luz, agua…).
+// Para los variables se usa como estimado el último monto registrado; si aún no hay, el que se escribió al crearlo.
+function esVariable(f){ return f.modalidad==='variable'; }
+function ultimoMontoFijo(f){
+  const regs=f.registros||{};
+  for(const mk of Object.keys(regs).sort().reverse()){ const mv=state.movimientos.find(m=>m.id===regs[mk]); if(mv&&num(mv.amount)>0) return num(mv.amount); }
+  return 0;
+}
+function montoEstimadoFijo(f){ if(!esVariable(f)) return num(f.monto)||0; return ultimoMontoFijo(f)||num(f.monto)||0; }
 function fijosActivos(tipo){ return state.frecuentes.filter(f=>!tipo||f.tipo===tipo).sort((a,b)=>(a.dia||0)-(b.dia||0)||(a.nombre||'').localeCompare(b.nombre||'')); }
 function diaFijo(f,mk){ const {D}=mesInfo(mk); return Math.min(parseInt(f.dia,10)||1, D); }
 function fechaFijo(f,mk){ return mk+'-'+String(diaFijo(f,mk)).padStart(2,'0'); }
@@ -1795,7 +1861,7 @@ function estadoFijo(f,mk){
 // Lo que falta pagar / cobrar este mes (para el recomendado), por moneda
 function fijosPendientesMes(tipo, mk){
   const t={PEN:0,USD:0};
-  fijosActivos(tipo).forEach(f=>{ if(estadoFijo(f,mk).estado==='pendiente') t[f.moneda==='USD'?'USD':'PEN']+=num(f.monto)||0; });
+  fijosActivos(tipo).forEach(f=>{ if(estadoFijo(f,mk).estado==='pendiente') t[f.moneda==='USD'?'USD':'PEN']+=montoEstimadoFijo(f); });
   return t;
 }
 function chipFijo(f,e){
@@ -1814,18 +1880,23 @@ function tarjetaFijosMes(){
   if(!fs.length) return h+`<div class="muted" style="font-size:14px;padding:6px 0 4px">Anota aquí lo que se paga o cobra cada mes (luz, agua, teléfono, pensión…) y te aparecerá con un botón para registrarlo.</div><button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="abrirFijo(null,'pago')">+ Agregar pago o ingreso fijo</button></div>`;
   fs.forEach(f=>{
     const e=estadoFijo(f,mk), pago=f.tipo==='pago';
-    const monto=e.estado==='hecho'?num(e.mv.amount):num(f.monto);
+    const vari=esVariable(f), monto=e.estado==='hecho'?num(e.mv.amount):montoEstimadoFijo(f);
+    const col=e.estado==='omitido'?'var(--text3)':pago?'var(--red)':'var(--green)';
+    const txtMonto=e.estado!=='hecho'&&vari
+      ? (monto>0?`≈ ${dinero(monto,f.moneda)}`:'Por definir')
+      : (pago?'− ':'+ ')+dinero(monto,f.moneda);
     h+=`<div class="list-row" style="align-items:center">
       <span class="gs-av" style="background:${pago?'var(--red-bg)':'var(--green-bg)'};color:${pago?'var(--red)':'var(--green)'}">${pago?'−':'+'}</span>
-      <div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:600">${esc(f.nombre)}</div><div style="margin-top:3px">${chipFijo(f,e)}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:600">${esc(f.nombre)}</div><div style="margin-top:3px">${chipFijo(f,e)}${vari?' <span class="chip" style="background:var(--bg3);color:var(--text2)">Variable</span>':''}</div></div>
       <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-        <span class="mono" style="font-size:15px;color:${e.estado==='omitido'?'var(--text3)':pago?'var(--red)':'var(--green)'}">${pago?'− ':'+ '}${dinero(monto,f.moneda)}</span>
+        <span class="mono" style="font-size:15px;color:${col}">${txtMonto}</span>
         ${e.estado==='pendiente'?`<button class="btn btn-sm ${pago?'btn-primary':'btn-ok'}" onclick="abrirRegFijo('${esc(f.id)}')">${pago?'Ya pagué':'Ya llegó'}</button>`:''}
       </div></div>`;
   });
   const pp=fijosPendientesMes('pago',mk), pi=fijosPendientesMes('ingreso',mk), mx=t=>[['PEN',t.PEN],['USD',t.USD]].filter(x=>x[1]>0.004).map(x=>dinero(x[1],x[0])).join(' · ')||dinero(0,'PEN');
   h+=`<div class="row" style="padding-top:10px;border-top:1px solid var(--border);font-size:14px"><span>Falta pagar</span><span class="mono" style="color:var(--red)">${mx(pp)}</span></div>
-      <div class="row" style="padding-top:4px;font-size:14px"><span>Falta que llegue</span><span class="mono" style="color:var(--green)">${mx(pi)}</span></div></div>`;
+      <div class="row" style="padding-top:4px;font-size:14px"><span>Falta que llegue</span><span class="mono" style="color:var(--green)">${mx(pi)}</span></div>
+      ${fs.some(f=>esVariable(f)&&estadoFijo(f,mk).estado==='pendiente')?'<div class="muted" style="font-size:12px;padding-top:4px">Los montos variables (≈) se estiman con lo último que registraste.</div>':''}</div>`;
   return h;
 }
 // ── Gestionar la lista ──
@@ -1836,17 +1907,22 @@ function renderFijos(){
   document.querySelectorAll('#fijos-tipo button').forEach(b=>b.classList.toggle('on', b.dataset.v===fijosTipo));
   const fs=fijosActivos(fijosTipo);
   document.getElementById('fijos-lista').innerHTML=fs.length?fs.map(f=>`<button class="list-row" style="width:100%;border-left:none;border-right:none;border-bottom:none;background:none;text-align:left" onclick="abrirFijo('${esc(f.id)}')">
-    <div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:600">${esc(f.nombre)}</div><div class="muted" style="font-size:13px">Día ${esc(f.dia)} de cada mes · ${esc(nombreCuenta(f.cuenta))}${f.cat?' · '+esc(f.cat):''}</div></div>
-    <span class="mono">${dinero(num(f.monto),f.moneda)}</span></button>`).join(''):`<div class="empty">Sin ${fijosTipo==='pago'?'pagos':'ingresos'} fijos todavía.</div>`;
+    <div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:600">${esc(f.nombre)}</div><div class="muted" style="font-size:13px">${esVariable(f)?'Variable':'Fijo'} · día ${esc(f.dia)} de cada mes · ${esc(nombreCuenta(f.cuenta))}${f.cat?' · '+esc(f.cat):''}</div></div>
+    <span class="mono">${esVariable(f)?(montoEstimadoFijo(f)>0?'≈ '+dinero(montoEstimadoFijo(f),f.moneda):'Variable'):dinero(num(f.monto),f.moneda)}</span></button>`).join(''):`<div class="empty">Sin ${fijosTipo==='pago'?'pagos':'ingresos'} fijos todavía.</div>`;
 }
-let fijoEdit=null, fijoForm={tipo:'pago',moneda:'PEN'};
+let fijoEdit=null, fijoForm={tipo:'pago',moneda:'PEN',modalidad:'fijo'};
 function fijoSet(k,v){
   fijoForm[k]=v; document.querySelectorAll('#fijo-'+k+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
-  const pago=fijoForm.tipo==='pago';
-  document.getElementById('fijo-title').textContent=(fijoEdit?'Editar ':'Nuevo ')+(pago?'pago fijo':'ingreso fijo');
-  document.getElementById('fijo-nombre').placeholder=pago?'Ej. Luz del Sur, Sedapal, Movistar':'Ej. Pensión, Alquiler del cuarto';
+  const pago=fijoForm.tipo==='pago', vari=fijoForm.modalidad==='variable';
+  document.querySelectorAll('#fijo-modalidad button').forEach(b=>b.classList.toggle('on', b.dataset.v===fijoForm.modalidad));
+  document.getElementById('fijo-title').textContent=(fijoEdit?'Editar ':'Nuevo ')+(pago?'pago':'ingreso')+(vari?' variable':' fijo');
+  document.getElementById('fijo-nombre').placeholder=pago?(vari?'Ej. Luz del Sur, Sedapal':'Ej. Movistar, Netflix, Cuota del colegio'):(vari?'Ej. Comisiones, Trabajos extra':'Ej. Pensión, Alquiler del cuarto');
   document.getElementById('fijo-cuenta-lbl').textContent=pago?'¿Con qué se paga normalmente?':'¿A qué cuenta llega?';
-  document.getElementById('fijo-monto-lbl').textContent=(pago?'Monto aproximado':'Monto')+' ('+(fijoForm.moneda==='USD'?'$':'S/')+')';
+  document.getElementById('fijo-monto-lbl').textContent=(vari?'Monto estimado (opcional)':'Monto')+' ('+(fijoForm.moneda==='USD'?'$':'S/')+')';
+  document.getElementById('fijo-monto').placeholder=vari?'Lo de un mes normal':'0.00';
+  document.getElementById('fijo-modalidad-nota').textContent=vari
+    ?`Cambia cada mes (luz, agua…). Al ${pago?'pagar':'llegar'} escribes el monto real; mientras tanto se usa el último que registraste.`
+    :`Siempre es el mismo monto. Al ${pago?'pagar':'llegar'} ya aparece escrito.`;
   const sel=document.getElementById('fijo-cuenta'), prev=sel.value;
   const lista=cuentasOrdenadas().filter(c=>c.moneda===fijoForm.moneda && (pago||!esTarjeta(c)));
   sel.innerHTML=lista.map(c=>`<option value="${esc(c.id)}">${esc(etiquetaCuenta(c))}${sufijoCuenta(c)}</option>`).join('')||'<option value="">No hay cuentas en esa moneda</option>';
@@ -1856,7 +1932,8 @@ function fijoSet(k,v){
 function abrirFijo(id, tipo){
   const f=id?state.frecuentes.find(x=>x.id===id):null; fijoEdit=f?f.id:null;
   document.getElementById('fijo-nombre').value=f?f.nombre:'';
-  document.getElementById('fijo-monto').value=f?fmtN(num(f.monto),2):'';
+  document.getElementById('fijo-monto').value=f&&num(f.monto)>0?fmtN(num(f.monto),2):'';
+  fijoForm.modalidad=f&&esVariable(f)?'variable':'fijo';
   document.getElementById('fijo-dia').value=f?f.dia:'';
   document.getElementById('fijo-cat').value=f?(f.cat||''):'';
   document.getElementById('fijo-cuenta').innerHTML=f?`<option value="${esc(f.cuenta)}"></option>`:'';
@@ -1872,11 +1949,13 @@ function guardarFijo(){
   const tipoCat=fijoForm.tipo==='pago'?'gasto':'ingreso', catTxt=document.getElementById('fijo-cat').value.trim();
   const cat=catTxt?(catExistente(tipoCat,catTxt)||catTxt):(fijoForm.tipo==='pago'?'Servicios':'Otros');
   if(!nombre){ toast('Ponle un nombre (ej. Luz del Sur).',{error:true}); return; }
-  if(!(monto>0)){ toast('Pon el monto (aunque sea aproximado).',{error:true}); return; }
+  const vari=fijoForm.modalidad==='variable';
+  if(!vari&&!(monto>0)){ toast('Pon el monto. Si cambia cada mes, elige «Monto variable».',{error:true}); return; }
+  if(vari&&monto<0){ toast('El monto no puede ser negativo.',{error:true}); return; }
   if(!(dia>=1&&dia<=31)){ toast('El día va de 1 a 31.',{error:true}); return; }
   if(!getCuenta(cuenta)){ toast('Elige la cuenta.',{error:true}); return; }
   const f=fijoEdit?{...state.frecuentes.find(x=>x.id===fijoEdit)}:{id:nuevoId('fijo'), creado:Date.now(), registros:{}, omitidos:{}};
-  Object.assign(f,{tipo:fijoForm.tipo, nombre, monto:+monto.toFixed(2), moneda:fijoForm.moneda, dia, cuenta, cat});
+  Object.assign(f,{tipo:fijoForm.tipo, modalidad:vari?'variable':'fijo', nombre, monto:monto>0?+monto.toFixed(2):0, moneda:fijoForm.moneda, dia, cuenta, cat});
   const ops=[{c:'frecuentes',data:f}];
   if(!catExistente(tipoCat,cat)) ops.push({c:'ajustes',data:docCats(d=>d[tipoCat].push(cat))});
   DB.guardar(ops, `${fijoEdit?'Editó':'Agregó'} ${f.tipo==='pago'?'pago':'ingreso'} fijo ${nombre}`).catch(()=>{});
@@ -1896,7 +1975,9 @@ function abrirRegFijo(id){
   const pago=f.tipo==='pago', mk=hoyLima().slice(0,7);
   document.getElementById('regfijo-title').textContent=(pago?'Pagar ':'Registrar ')+f.nombre;
   document.getElementById('regfijo-monto-lbl').textContent=(pago?'¿Cuánto pagaste?':'¿Cuánto llegó?')+' ('+(f.moneda==='USD'?'$':'S/')+')';
-  document.getElementById('regfijo-monto').value=fmtN(num(f.monto),2);
+  const vari=esVariable(f), est=montoEstimadoFijo(f), inp=document.getElementById('regfijo-monto');
+  inp.value=vari?'':fmtN(num(f.monto),2);
+  inp.placeholder=vari?(est>0?'El mes pasado: '+fmtN(est,2):'Escribe el monto'):'0.00';
   document.getElementById('regfijo-fecha').value=hoyLima();
   document.getElementById('regfijo-cuenta-lbl').textContent=pago?'¿Con qué pagaste?':'¿A qué cuenta llegó?';
   const lista=cuentasOrdenadas().filter(c=>c.moneda===f.moneda && (pago||!esTarjeta(c)));
@@ -1905,13 +1986,14 @@ function abrirRegFijo(id){
   sel.value=lista.some(c=>c.id===f.cuenta)?f.cuenta:((lista[0]||{}).id||'');
   document.getElementById('regfijo-guardar').className='btn '+(pago?'btn-primary':'btn-ok');
   document.getElementById('regfijo-guardar').textContent=pago?'Registrar pago':'Registrar ingreso';
-  document.getElementById('regfijo-nota').textContent=`Se registra como ${pago?'gasto':'ingreso'} de ${MESES_L[parseInt(mk.slice(5,7),10)-1]} (categoría ${f.cat||'Otros'}).`;
+  document.getElementById('regfijo-nota').textContent=(vari?`Monto variable: escribe lo que ${pago?'pagaste':'llegó'} este mes (mira tu recibo). `:'')+`Se registra como ${pago?'gasto':'ingreso'} de ${MESES_L[parseInt(mk.slice(5,7),10)-1]} (categoría ${f.cat||'Otros'}).`;
   abrirHoja('sh-regfijo');
+  if(vari) setTimeout(()=>inp.focus(),250);
 }
 function guardarRegFijo(){
   const f=state.frecuentes.find(x=>x.id===regFijoId); if(!f) return;
   const monto=num(document.getElementById('regfijo-monto').value), fecha=document.getElementById('regfijo-fecha').value, cuenta=getCuenta(document.getElementById('regfijo-cuenta').value);
-  if(!(monto>0)){ toast('Pon el monto.',{error:true}); return; }
+  if(!(monto>0)){ toast(esVariable(f)?'Escribe cuánto fue este mes.':'Pon el monto.',{error:true}); return; }
   if(!esFecha(fecha)){ toast('Pon la fecha.',{error:true}); return; }
   if(!cuenta){ toast('Elige la cuenta.',{error:true}); return; }
   const mk=hoyLima().slice(0,7), pago=f.tipo==='pago';
@@ -2061,9 +2143,9 @@ function avisosHoy(){
   // pagos fijos vencidos o próximos (3 días); ingresos de hoy o atrasados
   fijosActivos().forEach(fx=>{
     const e=estadoFijo(fx,mk); if(e.estado!=='pendiente') return;
-    const pago=fx.tipo==='pago';
-    if(pago && e.faltan<=3) out.push({nivel:e.faltan<0?'bad':'warn', orden:e.faltan, txt:e.faltan<0?`${fx.nombre} venció hace ${-e.faltan} día${e.faltan===-1?'':'s'}: ${dinero(num(fx.monto),fx.moneda)}`:e.faltan===0?`${fx.nombre} vence hoy: ${dinero(num(fx.monto),fx.moneda)}`:`${fx.nombre} vence ${e.faltan===1?'mañana':'en '+e.faltan+' días'}: ${dinero(num(fx.monto),fx.moneda)}`, accion:'Ya pagué', fn:`abrirRegFijo('${fx.id}')`});
-    if(!pago && e.faltan<=0) out.push({nivel:'info', orden:e.faltan, txt:`¿Ya llegó ${fx.nombre}? (${dinero(num(fx.monto),fx.moneda)}, día ${diaFijo(fx,mk)})`, accion:'Ya llegó', fn:`abrirRegFijo('${fx.id}')`});
+    const pago=fx.tipo==='pago', est=montoEstimadoFijo(fx), mt=esVariable(fx)?(est>0?'≈ '+dinero(est,fx.moneda):'monto variable'):dinero(num(fx.monto),fx.moneda);
+    if(pago && e.faltan<=3) out.push({nivel:e.faltan<0?'bad':'warn', orden:e.faltan, txt:e.faltan<0?`${fx.nombre} venció hace ${-e.faltan} día${e.faltan===-1?'':'s'}: ${mt}`:e.faltan===0?`${fx.nombre} vence hoy: ${mt}`:`${fx.nombre} vence ${e.faltan===1?'mañana':'en '+e.faltan+' días'}: ${mt}`, accion:'Ya pagué', fn:`abrirRegFijo('${fx.id}')`});
+    if(!pago && e.faltan<=0) out.push({nivel:'info', orden:e.faltan, txt:`¿Ya llegó ${fx.nombre}? (${mt}, día ${diaFijo(fx,mk)})`, accion:'Ya llegó', fn:`abrirRegFijo('${fx.id}')`});
   });
   // mantenimiento del auto
   state.mantenimientos.forEach(m=>{ const p=proyeccionMant(m); if(!p||p.sinKm) return;
@@ -2364,6 +2446,9 @@ async function confirmarImport(){
     ['recaudo','sinRendimiento','fInicial','fInicialManual','kmInicial','kmInicialManual'].forEach(k=>{ if(f[k]!=null) r[k]=f[k]; });
     return {c:'recargas',data:r}; })
     .concat(kms.map((k,i)=>({c:'km',data:{id:nuevoId('kmm')+'-h'+i, km:k.km, fechaHora:k.fecha+'T12:00', origen:'importado', motivo:'Lectura importada (sin recarga)'}})));
+  // recaudos importados → abonos a la deuda de la instalación (si hay una vinculada)
+  const dg=deudaGnv(), recsImp=ops.filter(o=>o.c==='recargas'&&o.data.tipo==='gnv'&&num(o.data.recaudo)>0).map(o=>o.data);
+  if(dg&&recsImp.length) ops.push({c:'deudas',data:deudaConRecaudos(dg,recsImp)});
   // lotes de 300 (Firestore admite hasta 500 escrituras por lote)
   const np=Math.ceil(ops.length/300);
   for(let i=0;i<ops.length;i+=300) await DB.guardar(ops.slice(i,i+300), `Importó histórico de combustible: ${filas.length} recargas${kms.length?' y '+kms.length+' lecturas de km':''}${np>1?' (parte '+(i/300+1)+' de '+np+')':''} (${impNombre})`).catch(()=>{});
@@ -2530,16 +2615,33 @@ const CHART_OPC=[
   {key:'kmDiarios', tab:'Km/día', nombre:'Km por día', fmt:v=>fmtN(v,1)+' km', color:'#3d6fd4'}
 ];
 function setChartComb(i){ ui.chartIdx=i; renderGraficoComb(calcularFilas(ui.tipoComb)); }
+// Periodos del gráfico de combustible (fechas en hora de Lima)
+const CHART_PER=[['7','Semana'],['mes','Este mes'],['3m','3 meses'],['6m','6 meses'],['año','Este año'],['todo','Todo']];
+function desdePeriodo(per){
+  const hoy=hoyLima();
+  if(per==='7') return sumarDias(hoy,-6);
+  if(per==='mes') return hoy.slice(0,7)+'-01';
+  if(per==='3m') return mkMas(hoy.slice(0,7),-2)+'-01';
+  if(per==='6m') return mkMas(hoy.slice(0,7),-5)+'-01';
+  if(per==='año') return hoy.slice(0,4)+'-01-01';
+  return null;
+}
+function setChartPer(p){ ui.chartPer=p; renderGraficoComb(calcularFilas(ui.tipoComb)); }
 function renderGraficoComb(rows){
   const card=document.getElementById('comb-grafico-card');
   document.getElementById('comb-chart-seg').innerHTML=CHART_OPC.map((o,i)=>`<button class="${i===ui.chartIdx?'on':''}" onclick="setChartComb(${i})">${typeof o.tab==='function'?o.tab():o.tab}</button>`).join('');
-  const cfg=CHART_OPC[ui.chartIdx];
-  const val=rows.map(r=>({r, v: cfg.key==='pxg'?num(r.pxg):r[cfg.key]})).filter(x=>x.v!==null&&!isNaN(x.v)&&x.v>0);
+  document.getElementById('comb-chart-per').innerHTML=CHART_PER.map(([v,l])=>`<button type="button" class="${ui.chartPer===v?'on':''}" onclick="setChartPer('${v}')">${l}</button>`).join('');
+  const cfg=CHART_OPC[ui.chartIdx], desde=desdePeriodo(ui.chartPer);
+  const enPer=desde?rows.filter(r=>(r.fFinal||'')>=desde):rows;
+  const val=enPer.map(r=>({r, v: cfg.key==='pxg'?num(r.pxg):r[cfg.key]})).filter(x=>x.v!==null&&!isNaN(x.v)&&x.v>0);
   if(charts.comb){ charts.comb.destroy(); charts.comb=null; }
   card.classList.toggle('hidden', !rows.length);
+  document.getElementById('comb-chart').parentElement.classList.toggle('hidden', !val.length);
   const nota=document.getElementById('comb-chart-nota');
-  if(!val.length){ nota.textContent='Aún no hay datos suficientes para este gráfico (se necesitan 2 recargas con km).'; return; }
-  nota.textContent=(typeof cfg.nombre==='function'?cfg.nombre():cfg.nombre)+' en cada recarga';
+  if(!val.length){ nota.textContent=desde&&rows.length?`Sin recargas en este periodo${enPer.length?' con este dato':''}. Elige un periodo más largo.`:'Aún no hay datos suficientes para este gráfico (se necesitan 2 recargas con km).'; return; }
+  const nom=typeof cfg.nombre==='function'?cfg.nombre():cfg.nombre, prom=val.reduce((a,x)=>a+x.v,0)/val.length;
+  const perTxt=(CHART_PER.find(p=>p[0]===ui.chartPer)||[])[1]||'';
+  nota.innerHTML=`${esc(nom)} en cada recarga · ${val.length} recarga${val.length===1?'':'s'}${desde?' ('+esc(perTxt.toLowerCase())+')':''}<br>${cfg.key==='total'?`Suma del periodo: <b class="mono">${cfg.fmt(val.reduce((a,x)=>a+x.v,0))}</b> · promedio <b class="mono">${cfg.fmt(prom)}</b>`:`Promedio: <b class="mono">${cfg.fmt(prom)}</b>`}`;
   if(typeof Chart==='undefined') return;
   charts.comb=new Chart(document.getElementById('comb-chart'),{
     type:'line',
@@ -2557,7 +2659,7 @@ function renderListaRecargas(rows){
   if(!DB.cargadas.has('recargas')){ el.innerHTML='<div class="empty">Cargando…</div>'; return; }
   if(!rows.length){ el.innerHTML=`<div class="card empty">Sin recargas de ${COMB_LABEL[ui.tipoComb]} todavía.<br>Toca «+ Nueva recarga» después de cargar en el grifo.</div>`; return; }
   const inv=rows.slice().reverse();
-  const mostrar=ui.verTodas?inv:inv.slice(0,8);
+  const mostrar=ui.verTodas?inv:inv.slice(0,5);
   el.innerHTML=mostrar.map(r=>{
     const g=r.gastoRegistrado;
     let pago;
@@ -2580,7 +2682,7 @@ function renderListaRecargas(rows){
         <div><div class="k">Km/día</div><div class="v15">${r.kmDiarios!==null?fmtN(r.kmDiarios,1):'—'}</div></div>
         <div><div class="k">Pagó con</div>${pago}</div>
       </div>${alerta}</button>`;
-  }).join('') + (inv.length>8&&!ui.verTodas?`<button class="btn" style="width:100%" onclick="ui.verTodas=true;renderCombustible()">Ver las ${inv.length} recargas</button>`:'');
+  }).join('') + (inv.length>5?(ui.verTodas?`<button class="btn" style="width:100%" onclick="ui.verTodas=false;renderCombustible();document.getElementById('comb-lista').scrollIntoView({block:'start'})">Ver solo las últimas 5</button>`:`<button class="btn" style="width:100%" onclick="ui.verTodas=true;renderCombustible()">Ver las ${inv.length} recargas</button>`):'');
 }
 
 // ── Formulario de recarga ──
@@ -2734,10 +2836,10 @@ async function guardarRecarga(){
     if(!catExistente('gasto',CAT_RECAUDO)) ops.push({c:'ajustes',data:docCats(d=>d.gasto.push(CAT_RECAUDO))});
   } else { if(recMovAntes) ops.push({c:'movimientos',id:recMovAntes.id,del:true}); delete r.recaudoMovId; }
   // deuda de la instalación: un abono por recarga (se actualiza si se edita)
-  const dg=deudaGnv(), histo=r.gastoRegistrado&&r.gastoRegistrado.tipo==='historico';
+  const dg=deudaGnv();
   const dueñaAntes=state.deudas.find(d=>(d.abonos||[]).some(a=>a.recargaId===r.id));
-  if(dueñaAntes && (!dg || dueñaAntes.id!==dg.id || !(recaudo>0) || histo)) ops.push({c:'deudas',data:{...dueñaAntes, abonos:dueñaAntes.abonos.filter(a=>a.recargaId!==r.id)}});
-  if(dg && recaudo>0 && !histo){
+  if(dueñaAntes && (!dg || dueñaAntes.id!==dg.id || !(recaudo>0))) ops.push({c:'deudas',data:{...dueñaAntes, abonos:dueñaAntes.abonos.filter(a=>a.recargaId!==r.id)}});
+  if(dg && recaudo>0){
     const otros=(dg.abonos||[]).filter(a=>a.recargaId!==r.id), saldoSin=Math.max(0,(num(dg.monto)||0)-otros.reduce((s,a)=>s+(num(a.monto)||0),0));
     const prevAb=(dg.abonos||[]).find(a=>a.recargaId===r.id), monto=Math.min(recaudo, saldoSin);
     if(monto>0.004) ops.push({c:'deudas',data:{...dg, abonos:[...otros, {id:prevAb?prevAb.id:nuevoId('abo'), monto:+monto.toFixed(2), fecha, movId:r.recaudoMovId||null, recargaId:r.id}]}});
@@ -2747,7 +2849,7 @@ async function guardarRecarga(){
   DB.guardar(ops, `${recEdit?'Editó':'Registró'} recarga de ${COMB_LABEL[recTipo]} del ${fechaCorta(fecha)} · ${dinero(total,'PEN')}${recaudo>0?' + recaudo '+dinero(recaudo,'PEN'):''}`).catch(()=>{});
   cerrarHoja('sh-recarga');
   if(recTipo!==ui.tipoComb) cambiarTipoComb(recTipo);
-  toast(recEdit?'Recarga actualizada':`Recarga guardada${r.gastoRegistrado&&r.gastoRegistrado.tipo==='cuenta'?' · gasto de '+dinero(total+recaudo,'PEN')+' en '+nombreCuenta(pago):''}${dg&&recaudo>0&&!histo?' · deuda de instalación: −'+dinero(recaudo,'PEN'):''}`);
+  toast(recEdit?'Recarga actualizada':`Recarga guardada${r.gastoRegistrado&&r.gastoRegistrado.tipo==='cuenta'?' · gasto de '+dinero(total+recaudo,'PEN')+' en '+nombreCuenta(pago):''}${dg&&recaudo>0?' · deuda de instalación: −'+dinero(recaudo,'PEN'):''}`);
 }
 async function borrarRecarga(){
   const r=state.recargas.find(x=>x.id===recEdit); if(!r) return;
@@ -2791,6 +2893,21 @@ function recRecaudoUI(){
   if(gnv && total>0) tp.innerHTML=`Total pagado en el grifo: <b class="mono">${dinero(total+rec,'PEN')}</b> <span class="muted">(GNV ${dinero(total,'PEN')} + recaudo ${dinero(rec,'PEN')})</span>`;
 }
 function recargasConRecaudo(){ return state.recargas.filter(r=>r.tipo==='gnv'&&num(r.recaudo)>0); }
+// Recaudos que todavía no se descontaron de la deuda (p. ej. recargas importadas del histórico)
+function recaudosSinDescontar(d, recs){ d=d||deudaGnv(); if(!d) return []; return (recs||recargasConRecaudo()).filter(r=>!(d.abonos||[]).some(a=>a.recargaId===r.id)); }
+function deudaConRecaudos(d, recs){
+  const ab=[...(d.abonos||[])]; let falta=Math.max(0,(num(d.monto)||0)-ab.reduce((s,a)=>s+(num(a.monto)||0),0));
+  recs.filter(r=>!ab.some(a=>a.recargaId===r.id)).sort((a,b)=>(a.fFinal||'').localeCompare(b.fFinal||'')).forEach(r=>{
+    const m=Math.min(num(r.recaudo),falta); if(m>0.004){ ab.push({id:nuevoId('abo'), monto:+m.toFixed(2), fecha:r.fFinal, movId:r.recaudoMovId||null, recargaId:r.id}); falta-=m; } });
+  return {...d, abonos:ab};
+}
+function descontarRecaudosGnv(){
+  const d=deudaGnv(), pend=recaudosSinDescontar(d); if(!d||!pend.length) return;
+  const d2=deudaConRecaudos(d,pend), pag=(d2.abonos||[]).length-(d.abonos||[]).length;
+  const suma=d2.abonos.slice((d.abonos||[]).length).reduce((s,a)=>s+num(a.monto),0);
+  DB.guardar([{c:'deudas',data:d2}], `Descontó ${pag} recaudo${pag===1?'':'s'} de GNV de la deuda de la instalación (${dinero(suma,'PEN')})`).catch(()=>{});
+  toast(`Descontado ${dinero(suma,'PEN')} de la deuda de la instalación`, undoBtn());
+}
 function tarjetaGnv(rows){
   const el=document.getElementById('comb-gnv');
   if(ui.tipoComb!=='gnv'){ el.innerHTML=''; return; }
@@ -2806,6 +2923,9 @@ function tarjetaGnv(rows){
       <div class="bar" style="margin-top:12px"><div style="width:${pct.toFixed(0)}%;background:var(--green)"></div></div>
       <div class="muted" style="font-size:13px;margin-top:6px">${falta<=0.004?'¡Deuda pagada!':`${pct.toFixed(0)}% pagado${prom>0?` · a ≈ ${dinero(prom,'PEN')} por recarga faltan ≈ ${Math.ceil(falta/prom)} recargas`:''}`}</div>
       <div class="muted" style="font-size:13px;margin-top:4px">Cada recaudo que anotes en una recarga se descuenta solo.</div>`;
+    const pend=falta>0.004?recaudosSinDescontar(d):[];
+    if(pend.length){ const sp=pend.reduce((s,r)=>s+num(r.recaudo),0);
+      h+=`<div class="alert warn" style="margin-top:10px;display:flex;flex-direction:column;gap:8px"><div>Hay <b>${pend.length} recaudo${pend.length===1?'':'s'}</b> (${dinero(sp,'PEN')}) de recargas ${pend.every(r=>r.importado)?'importadas del histórico ':''}que aún no se descuentan de esta deuda.</div><button class="btn btn-primary" onclick="descontarRecaudosGnv()">Descontarlos ahora</button></div>`; }
   } else {
     h+=`<div class="muted" style="font-size:14px;margin-top:6px">Anota el monto total de la deuda por la instalación y la app irá descontando el recaudo de cada recarga.</div>
       ${conRec.length?`<div class="row" style="margin-top:10px;font-size:14px"><span>Recaudo ya pagado</span><span class="mono">${dinero(pagadoRec,'PEN')} <span class="muted">(${conRec.length} recarga${conRec.length===1?'':'s'})</span></span></div>`:''}
@@ -2844,10 +2964,9 @@ function guardarGnvDeuda(){
   }
   // descontar los recaudos que ya existen (cada recarga, un abono)
   if(!document.getElementById('gnvd-desc-wrap').classList.contains('hidden') && document.getElementById('gnvd-desc').checked){
-    const ab=[...(deuda.abonos||[])];
-    recargasConRecaudo().filter(r=>!ab.some(a=>a.recargaId===r.id)).sort((a,b)=>(a.fFinal||'').localeCompare(b.fFinal||''))
-      .forEach(r=>ab.push({id:nuevoId('abo'), monto:num(r.recaudo), fecha:r.fFinal, movId:r.recaudoMovId||null, recargaId:r.id}));
-    deuda.abonos=ab;
+    const bruto=(deuda.abonos||[]).reduce((s,x)=>s+(num(x.monto)||0),0)+recaudosSinDescontar(deuda).reduce((s,r)=>s+num(r.recaudo),0);
+    if(bruto>num(deuda.monto)+0.004){ toast(`Los recaudos (${dinero(bruto,'PEN')}) ya superan ese monto. Pon el total de la deuda al instalar.`,{error:true}); return; }
+    deuda.abonos=deudaConRecaudos(deuda, recargasConRecaudo()).abonos;
   }
   const pagado=(deuda.abonos||[]).reduce((s,a)=>s+(num(a.monto)||0),0);
   if(pagado>num(deuda.monto)+0.004){ toast(`Los recaudos (${dinero(pagado,'PEN')}) ya superan ese monto. Pon el total de la deuda al instalar.`,{error:true}); return; }
