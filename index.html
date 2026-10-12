@@ -199,6 +199,7 @@ textarea.inp{padding:12px 14px;min-height:80px}
       </div>
       <button class="btn btn-primary btn-big" id="btn-nueva-recarga" onclick="abrirRecarga()">+ Nueva recarga de GNV</button>
       <div id="comb-resumen"></div>
+      <div id="comb-gnv"></div>
       <div class="card pad" id="comb-grafico-card">
         <div class="seg" id="comb-chart-seg"></div>
         <div class="chart-box"><canvas id="comb-chart" aria-label="Gráfico de recargas" role="img"></canvas></div>
@@ -248,8 +249,13 @@ textarea.inp{padding:12px 14px;min-height:80px}
         <label class="field"><span id="rec-gal-lbl">Metros cúbicos (m³)</span><input class="inp num" id="rec-gal" type="text" inputmode="decimal" placeholder="0.00" oninput="recCambio('gal')"></label>
         <label class="field"><span id="rec-pxg-lbl">Precio por m³</span><input class="inp num" id="rec-pxg" type="text" inputmode="decimal" placeholder="S/ 0.00" oninput="recCambio('pxg')"></label>
       </div>
-      <label class="field"><span>Total pagado (S/)</span><input class="inp num" id="rec-total" type="text" inputmode="decimal" placeholder="Se calcula solo" oninput="recCambio('total')"><small id="rec-calc-nota">Llena 2 de los 3 (cantidad, precio o total) y el otro se calcula.</small></label>
+      <label class="field"><span id="rec-total-lbl">Total pagado (S/)</span><input class="inp num" id="rec-total" type="text" inputmode="decimal" placeholder="Se calcula solo" oninput="recCambio('total')"><small id="rec-calc-nota">Llena 2 de los 3 (cantidad, precio o total) y el otro se calcula.</small></label>
+      <div id="rec-recaudo-wrap" class="form hidden">
+        <label class="field"><span>Recaudo de la instalación (S/)</span><input class="inp num" id="rec-recaudo" type="text" inputmode="decimal" placeholder="0.00" oninput="recRecaudoTocado=true;recRecaudoUI()"><small id="rec-recaudo-nota"></small></label>
+        <div class="calc hidden" id="rec-pagado"></div>
+      </div>
       <div class="calc" id="rec-tramo"></div>
+      <label class="row" style="justify-content:flex-start;gap:12px;cursor:pointer"><input type="checkbox" id="rec-sinrend" style="width:22px;height:22px" onchange="recRecalcular()"><span style="font-size:15px">No contar en el rendimiento <span class="muted" style="font-size:13px">(recarga parcial o tramo incompleto)</span></span></label>
       <div id="rec-inicio-wrap" class="hidden form">
         <div class="grid2">
           <label class="field"><span>Fecha de la recarga anterior</span><input class="inp" id="rec-finicial" type="date" oninput="recRecalcular()"></label>
@@ -550,8 +556,8 @@ textarea.inp{padding:12px 14px;min-height:80px}
     <div class="grab"></div>
     <div class="head"><h2 id="imp-title">Cargar histórico de combustible</h2><button class="icon-btn" aria-label="Cerrar" onclick="cerrarHoja('sh-import')">✕</button></div>
     <div class="form">
-      <div class="muted" style="font-size:14px">Sube un Excel (.xlsx) o CSV con una fila por recarga y las columnas <b>FECHA</b>, <b>KM</b> (odómetro al cargar), <b>CANTIDAD</b> (m³ o galones) y <b>PRECIO</b> o <b>TOTAL</b>. Las recargas pasadas no crean gastos ni cambian tus saldos.</div>
-      <button class="btn" type="button" onclick="descargarPlantilla()">Descargar plantilla Excel</button>
+      <div class="muted" style="font-size:14px">Sube tu Excel (.xlsx) o CSV con una fila por recarga, igual que las plantillas: <b>F. INICIAL</b>, <b>F. FINAL</b>, <b>KM INICIAL</b>, <b>KM FINAL</b>, la cantidad (<b>M3</b> o <b>GALONES</b>) y el precio (<b>PXM3</b>/<b>PXG</b>) o el total. En GNV también lee <b>RECAUDO</b>. Las filas sin carga se guardan como lecturas de km. Las recargas pasadas no crean gastos ni cambian tus saldos.</div>
+      <div class="grid2"><button class="btn" type="button" onclick="descargarPlantilla('gnv')">Plantilla GNV</button><button class="btn" type="button" onclick="descargarPlantilla('gas')">Plantilla Gasolina</button></div>
       <div class="field"><span>¿De qué combustible son?</span><div class="seg" id="imp-tipo"><button type="button" data-v="gnv" onclick="impSetTipo('gnv')">GNV</button><button type="button" data-v="gas" onclick="impSetTipo('gas')">Gasolina</button><button type="button" data-v="archivo" onclick="impSetTipo('archivo')">Según columna TIPO</button></div></div>
       <label class="field"><span>Archivo</span><input class="inp" id="imp-archivo" type="file" accept=".xlsx,.xls,.csv" onchange="leerArchivoImport(this)" style="padding:10px 12px"></label>
       <div id="imp-preview"></div>
@@ -585,6 +591,24 @@ textarea.inp{padding:12px 14px;min-height:80px}
       <div id="rest-preview"></div>
     </div>
     <div class="actions"><button class="btn" onclick="cerrarHoja('sh-restaurar')">Cancelar</button><button class="btn btn-primary" id="rest-ok" disabled onclick="confirmarRestaurar()">Restaurar</button></div>
+  </div>
+</div>
+
+<!-- ══ HOJA: deuda de la instalación GNV ══ -->
+<div class="sheet" id="sh-gnvdeuda" style="z-index:110" onclick="if(event.target===this)cerrarHoja('sh-gnvdeuda')">
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="gnvd-title">
+    <div class="grab"></div>
+    <div class="head"><h2 id="gnvd-title">Deuda de la instalación GNV</h2><button class="icon-btn" aria-label="Cerrar" onclick="cerrarHoja('sh-gnvdeuda')">✕</button></div>
+    <div class="form">
+      <div class="muted" style="font-size:14px">El recaudo que anotes en cada recarga de GNV se descuenta de esta deuda.</div>
+      <label class="field hidden" id="gnvd-sel-wrap"><span>¿Ya la anotaste en préstamos?</span><select class="inp" id="gnvd-sel" onchange="gnvdUI()"></select></label>
+      <div id="gnvd-nueva" class="form">
+        <label class="field"><span>Monto total de la deuda (S/)</span><input class="inp num" id="gnvd-monto" type="text" inputmode="decimal" placeholder="Lo que costó la instalación, ej. 3,500.00" style="font-size:20px"><small>El total que se debía al instalar. Lo pagado se descuenta aparte.</small></label>
+        <label class="field"><span>Nombre</span><input class="inp" id="gnvd-nombre" type="text"></label>
+      </div>
+      <label class="row calc" id="gnvd-desc-wrap" style="justify-content:flex-start;gap:12px;cursor:pointer"><input type="checkbox" id="gnvd-desc" checked style="width:22px;height:22px;flex-shrink:0"><span id="gnvd-desc-lbl" style="font-size:15px"></span></label>
+    </div>
+    <div class="actions" style="flex-wrap:wrap"><button class="btn btn-danger hidden" id="gnvd-quitar" onclick="quitarGnvDeuda()">Desvincular</button><button class="btn" onclick="cerrarHoja('sh-gnvdeuda')">Cancelar</button><button class="btn btn-primary" onclick="guardarGnvDeuda()">Guardar</button></div>
   </div>
 </div>
 
@@ -673,9 +697,9 @@ textarea.inp{padding:12px 14px;min-height:80px}
 //  FINANZAS PAPÁ — app liviana basada en DB FINANCE (app de Miguel)
 //  Parte 1: base (login, cuentas, guardado) + Combustible completo.
 // ══════════════════════════════════════════════════════════════════
-const APP_VERSION = 'v1.10.2';
-const APP_VERSION_DATE = '11/10/26 - 22:34'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'v1.10.2: el nombre visible de la app pasa a «Finanzas» (pestaña del navegador, inicio de sesión y copia JSON); las copias antiguas se siguen pudiendo restaurar.';
+const APP_VERSION = 'v1.12.0';
+const APP_VERSION_DATE = '11/10/26 - 23:33'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'v1.12.0: en Combustible → GNV, tarjeta «Deuda de la instalación GNV» con deuda total, pagado y falta (barra y recargas estimadas que faltan); el monto total se escribe y edita ahí mismo, con opción de descontar los recaudos que ya están en la app; desvincular conserva la deuda en préstamos.';
 
 // ── Pega aquí la configuración web del Firebase de tu papá ──
 // (Firebase → Configuración del proyecto → Tus apps → Web). No es secreta:
@@ -1355,7 +1379,9 @@ async function borrarMovimiento(id){
   if(fx){ const reg={...(fx.registros||{})}; Object.keys(reg).forEach(k=>{ if(reg[k]===mv.id) delete reg[k]; }); ops.push({c:'frecuentes',data:{...fx, registros:reg}}); }
   const de=mv.deudaId?state.deudas.find(d=>d.id===mv.deudaId):null;
   if(de) ops.push({c:'deudas',data:{...de, abonos:(de.abonos||[]).filter(a=>a.movId!==mv.id)}});
-  if(rec){ const r2={...rec}; delete r2.gastoRegistrado; ops.push({c:'recargas',data:r2}); }
+  if(rec && mv.esRecaudo){ const r2={...rec}; delete r2.recaudoMovId; ops.push({c:'recargas',data:r2});
+    const dAb=state.deudas.find(d=>(d.abonos||[]).some(a=>a.movId===mv.id)); if(dAb) ops.push({c:'deudas',data:{...dAb, abonos:dAb.abonos.map(a=>a.movId===mv.id?{...a,movId:null}:a)}}); }
+  else if(rec){ const r2={...rec}; delete r2.gastoRegistrado; ops.push({c:'recargas',data:r2}); }
   DB.guardar(ops, `Eliminó ${tipoTxt}: ${mv.desc} · ${dinero(num(mv.amount),mv.currency)}`).catch(()=>{});
   toast(tipoTxt[0].toUpperCase()+tipoTxt.slice(1)+' eliminado'+(tipoTxt==='transferencia'?'a':''), undoBtn());
   return true;
@@ -2066,7 +2092,7 @@ function bloqueAvisos(){
 //  «Últimas acciones»). Combustible, Mantenimiento auto y Otros son fijas
 //  porque las usan Combustible, el Mantenimiento y los borrados.
 // ══════════════════════════════════════════════════════════════════
-const CATS_FIJAS={gasto:['Combustible','Mantenimiento auto','Otros'], ingreso:['Otros']};
+const CATS_FIJAS={gasto:['Combustible','Mantenimiento auto','Instalación GNV','Otros'], ingreso:['Otros']};
 function getCats(tipo){
   const a=state.ajustes.find(x=>x.id==='categorias');
   return (a&&Array.isArray(a[tipo])?a[tipo]:(tipo==='ingreso'?CATS_INGRESO:CATS_GASTO)).slice();
@@ -2194,29 +2220,46 @@ function exportarJSON(){
 //  muestra una vista previa y solo entonces importa. Las recargas históricas
 //  NO crean gastos ni tocan saldos (gastoRegistrado.tipo = 'historico').
 // ══════════════════════════════════════════════════════════════════
+// Columnas reconocidas (títulos sin tildes ni signos). Pensadas para las plantillas
+// de la app y para los Excel de Miguel (gasolina: PRECIO = total y PXG = precio por
+// galón; GNV: M3, PXM3, PRECIO SOLO GNV, RECAUDO, GNV + RECAUDO).
 const COLS_IMPORT={
-  fecha:['fecha','f final','ffinal','fecha final','fecha recarga','dia'],
-  km:['km','km final','kmfinal','kilometraje','odometro','km odometro'],
-  cantidad:['cantidad','galones','gal','m3','metros cubicos','metros cubicos m3','cantidad m3','cantidad galones'],
-  precio:['precio','pxg','precio por galon','precio por m3','precio galon','precio m3','precio unitario','precio x galon','precio x m3'],
-  total:['total','total glp','total gnv','total gas','monto','importe','gasto','pagado'],
+  fecha:['f final','ffinal','fecha final','fecha','fecha recarga','dia'],
+  km:['km final','kmfinal','km','kilometraje','odometro','km odometro'],
+  fInicial:['f inicial','finicial','fecha inicial'],
+  kmInicial:['km inicial','kminicial'],
+  cantidad:['m3','galones','cantidad','gal','metros cubicos','cantidad m3','cantidad galones'],
+  unit:['pxg','pxm3','px m3','precio por galon','precio por m3','precio galon','precio m3','precio unitario','precio x galon','precio x m3'],
+  total:['precio solo gnv','total gnv','total','total glp','total gas','monto','importe','gasto','pagado','precio total'],
+  recaudo:['recaudo','recaudo instalacion','cuota instalacion'],
+  totalRec:['gnv recaudo','gnv mas recaudo','total pagado','total con recaudo'],
+  rendimiento:['rendimiento','contar rendimiento'],
+  kxg:['kxg','kxm3','km gal','km m3','km por galon','km por m3'],
   tipo:['tipo','combustible','tipo combustible']
 };
-let impTipo='gnv', impFilas=[], impNombre='';
+let impTipo='gnv', impFilas=[], impKm=[], impNombre='';
 function normCol(t){ return String(t==null?'':t).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
-function abrirImport(){ impFilas=[]; impNombre=''; document.getElementById('imp-archivo').value=''; document.getElementById('imp-preview').innerHTML=''; document.getElementById('imp-ok').disabled=true; impSetTipo('gnv'); abrirHoja('sh-import'); }
-function impSetTipo(t){ impTipo=t; document.querySelectorAll('#imp-tipo button').forEach(b=>b.classList.toggle('on', b.dataset.v===t)); if(impNombre) impAnalizar(window.__impMatriz||[]); }
-function descargarPlantilla(){
+function abrirImport(){ impFilas=[]; impKm=[]; impNombre=''; window.__impMatriz=null; document.getElementById('imp-archivo').value=''; document.getElementById('imp-preview').innerHTML=''; document.getElementById('imp-ok').disabled=true; impSetTipo('gnv'); abrirHoja('sh-import'); }
+function impSetTipo(t){ impTipo=t; document.querySelectorAll('#imp-tipo button').forEach(b=>b.classList.toggle('on', b.dataset.v===t)); if(impNombre&&window.__impMatriz) impAnalizar(window.__impMatriz); }
+function descargarPlantilla(tipo){
   if(typeof XLSX==='undefined'){ toast('No se pudo cargar el exportador. Revisa tu conexión.',{error:true}); return; }
-  const filas=[['TIPO','FECHA','KM','CANTIDAD','PRECIO','TOTAL'],['GNV','03/10/2026',51905,11,1.85,''],['Gasolina','15/09/2026',50800,3,'',49.5]];
-  const ws=XLSX.utils.aoa_to_sheet(filas); ws['!cols']=[{wch:10},{wch:12},{wch:10},{wch:10},{wch:9},{wch:9}];
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Recargas');
-  XLSX.writeFile(wb, 'plantilla_combustible.xlsx');
+  const filas = tipo==='gas'
+    ? [['F. INICIAL','F. FINAL','KM INICIAL','KM FINAL','GALONES','PXG','PRECIO','RENDIMIENTO'],
+       ['15/09/2023','02/10/2023',85767,86171,11.496,18.34,210.84,'SI'],
+       ['02/10/2023','16/10/2023',86171,86595,10.893,17.99,195.97,'SI']]
+    : [['F. INICIAL','F. FINAL','KM INICIAL','KM FINAL','M3','PXM3','PRECIO SOLO GNV','RECAUDO','GNV + RECAUDO','RENDIMIENTO'],
+       ['02/09/2024','14/09/2024',93975,94163,6.85,1.56,10.69,5.34,16.03,'SI'],
+       ['14/09/2024','19/09/2024',94163,94273,10.51,1.56,16.40,8.20,24.60,'SI']];
+  const ws=XLSX.utils.aoa_to_sheet(filas); ws['!cols']=filas[0].map(h=>({wch:Math.max(11,h.length+2)}));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, tipo==='gas'?'Gasolina':'GNV');
+  XLSX.writeFile(wb, tipo==='gas'?'plantilla_gasolina.xlsx':'plantilla_gnv.xlsx');
 }
 function leerArchivoImport(inp){
   const f=inp.files&&inp.files[0]; if(!f) return;
   if(typeof XLSX==='undefined'){ toast('No se pudo cargar el lector de Excel. Revisa tu conexión.',{error:true}); return; }
-  impNombre=f.name;
+  impNombre=f.name; window.__impMatriz=null;
+  // si el nombre del archivo dice gnv / gasolina, se elige solo
+  if(/gnv/i.test(f.name)) impSetTipo('gnv'); else if(/gasolina|gas\b/i.test(f.name)) impSetTipo('gas');
   const rd=new FileReader();
   rd.onload=e=>{
     try{
@@ -2225,75 +2268,109 @@ function leerArchivoImport(inp){
       const ws=wb.Sheets[wb.SheetNames[0]];
       const m=XLSX.utils.sheet_to_json(ws,{header:1, raw:true, defval:''});
       window.__impMatriz=m; impAnalizar(m);
-    }catch(err){ console.error(err); document.getElementById('imp-preview').innerHTML='<div class="alert bad">No se pudo leer el archivo. Usa un Excel (.xlsx) o CSV como la plantilla.</div>'; }
+    }catch(err){ console.error(err); document.getElementById('imp-preview').innerHTML='<div class="alert bad">No se pudo leer el archivo. Usa un Excel (.xlsx) o CSV como las plantillas.</div>'; }
   };
   rd.readAsArrayBuffer(f);
 }
 function fechaImport(v){
   if(typeof v==='number' && v>20000 && v<80000){ const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000); return d.toISOString().slice(0,10); }
+  if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
   const t=String(v||'').trim(); let m;
   if((m=t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
   if((m=t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/))){ const y=m[3].length===2?'20'+m[3]:m[3]; return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
   return null;
 }
-function numImport(v){ if(typeof v==='number') return v; const t=String(v||'').replace(/S\/|\$|\s/g,''); if(!t) return NaN; return num(t); }
+function numImport(v){ if(typeof v==='number') return v; const t=String(v||'').replace(/S\/|\$|\s/g,''); if(!t||t==='-') return NaN; return num(t); }
 function tipoImport(v){ const t=normCol(v); if(!t) return null; if(/gnv|gas natural|natural/.test(t)) return 'gnv'; if(/gasolina|^gas$|90|95|97|premium|regular/.test(t)) return 'gas'; return 'x'; }
 function fechaValida(f){ if(!esFecha(f)) return false; const [y,m,d]=f.split('-').map(Number); const t=new Date(Date.UTC(y,m-1,d)); return t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d; }
+function vacio(v){ return v===''||v==null||String(v).trim()===''||String(v).trim()==='-'; }
 function impAnalizar(m){
   const prev=document.getElementById('imp-preview'), btn=document.getElementById('imp-ok');
-  impFilas=[]; btn.disabled=true;
-  // fila de encabezados: la primera que tenga una columna de fecha y una de km
+  impFilas=[]; impKm=[]; btn.disabled=true;
+  // fila de títulos: la primera que tenga una columna de fecha y una de km
   let hi=-1, idx={};
   for(let i=0;i<Math.min(m.length,15);i++){
-    const cols=m[i].map(normCol), map={};
-    Object.entries(COLS_IMPORT).forEach(([k,al])=>{ const j=cols.findIndex(c=>al.includes(c)); if(j>=0) map[k]=j; });
+    const cols=(m[i]||[]).map(normCol), map={};
+    Object.entries(COLS_IMPORT).forEach(([k,al])=>{ for(const a of al){ const j=cols.indexOf(a); if(j>=0){ map[k]=j; break; } } });
+    // PRECIO a secas: si también hay PXG/PXM3 es el total pagado; si no, es el precio por unidad
+    const jp=cols.indexOf('precio');
+    if(jp>=0){ if(map.unit!=null){ if(map.total==null) map.total=jp; } else map.unit=jp; }
     if(map.fecha!=null && map.km!=null){ hi=i; idx=map; break; }
   }
-  if(hi<0){ prev.innerHTML='<div class="alert bad">No encontré las columnas FECHA y KM. Revisa que la primera fila tenga los títulos, como en la plantilla.</div>'; return; }
-  if(idx.cantidad==null){ prev.innerHTML='<div class="alert bad">Falta la columna de cantidad (CANTIDAD, GALONES o M3).</div>'; return; }
-  if(idx.precio==null && idx.total==null){ prev.innerHTML='<div class="alert bad">Falta la columna PRECIO o TOTAL (con una basta).</div>'; return; }
+  if(hi<0){ prev.innerHTML='<div class="alert bad">No encontré las columnas de fecha (F. FINAL o FECHA) y de kilometraje (KM FINAL o KM). Revisa que la primera fila tenga los títulos, como en las plantillas.</div>'; return; }
+  if(idx.cantidad==null){ prev.innerHTML='<div class="alert bad">Falta la columna de cantidad (M3, GALONES o CANTIDAD).</div>'; return; }
+  if(idx.unit==null && idx.total==null){ prev.innerHTML='<div class="alert bad">Falta el precio (PXG / PXM3) o el total (PRECIO, PRECIO SOLO GNV o TOTAL).</div>'; return; }
   if(impTipo==='archivo' && idx.tipo==null){ prev.innerHTML='<div class="alert bad">Elegiste «Según la columna TIPO» pero el archivo no tiene esa columna.</div>'; return; }
   const hoy=hoyLima(), errores=[], vistos=new Set(state.recargas.map(r=>r.tipo+'|'+r.fFinal+'|'+num(r.kmFinal)));
+  const kmVistos=new Set(obtenerHistorialKm().map(l=>l.ts.slice(0,10)+'|'+l.km));
   let dup=0;
   for(let i=hi+1;i<m.length;i++){
-    const row=m[i]; if(!row || row.every(c=>String(c).trim()==='')) continue;
-    const n=i+1, fecha=fechaImport(row[idx.fecha]), km=numImport(row[idx.km]), cant=numImport(row[idx.cantidad]);
-    let precio=idx.precio!=null?numImport(row[idx.precio]):NaN; const total=idx.total!=null?numImport(row[idx.total]):NaN;
-    const tipo=impTipo==='archivo'?tipoImport(row[idx.tipo]):impTipo;
-    if(!fecha || !fechaValida(fecha)){ errores.push(`Fila ${n}: la fecha no se entiende («${row[idx.fecha]}»)`); continue; }
+    const row=m[i]; if(!row || row.every(vacio)) continue;
+    const n=i+1, g=k=>idx[k]!=null?row[idx[k]]:'';
+    const fecha=fechaImport(g('fecha')), km=numImport(g('km')), cant=numImport(g('cantidad'));
+    let precio=numImport(g('unit')); const total=numImport(g('total'));
+    let recaudo=numImport(g('recaudo')); const totalRec=numImport(g('totalRec'));
+    const tipo=impTipo==='archivo'?tipoImport(g('tipo')):impTipo;
+    if(!fecha || !fechaValida(fecha)){ errores.push(`Fila ${n}: la fecha no se entiende («${g('fecha')}»)`); continue; }
     if(fecha>hoy){ errores.push(`Fila ${n}: la fecha ${fechaCorta(fecha)} es futura`); continue; }
     if(isNaN(km)||km<0){ errores.push(`Fila ${n}: falta el km`); continue; }
+    if(tipo!=='gnv' && tipo!=='gas'){ errores.push(`Fila ${n}: no sé si es GNV o Gasolina («${g('tipo')}»)`); continue; }
+    // fila solo con kilometraje (sin carga): se guarda como lectura del odómetro
+    if(!(cant>0) && !(total>0)){ const k=fecha+'|'+km; if(!kmVistos.has(k)){ kmVistos.add(k); impKm.push({km, fecha, n}); } continue; }
     if(!(cant>0)){ errores.push(`Fila ${n}: falta la cantidad`); continue; }
-    if(!(precio>0) && total>0) precio=total/cant;
+    // con el total se calcula el precio exacto (el PXG del Excel suele venir redondeado)
+    if(total>0) precio=total/cant;
     if(!(precio>0)){ errores.push(`Fila ${n}: falta el precio o el total`); continue; }
-    if(tipo!=='gnv' && tipo!=='gas'){ errores.push(`Fila ${n}: no sé si es GNV o Gasolina («${row[idx.tipo]}»)`); continue; }
     const k=tipo+'|'+fecha+'|'+km; if(vistos.has(k)){ dup++; continue; } vistos.add(k);
-    impFilas.push({tipo, fFinal:fecha, kmFinal:Math.round(km*100)/100, galones:Math.round(cant*1000)/1000, pxg:Math.round(precio*1000)/1000});
+    if(!(recaudo>0) && totalRec>0 && total>0 && totalRec-total>0.004) recaudo=totalRec-total;
+    const fila={tipo, fFinal:fecha, kmFinal:Math.round(km*100)/100, galones:Math.round(cant*1000)/1000, pxg:Math.round(precio*10000)/10000, n};
+    if(tipo==='gnv' && recaudo>0) fila.recaudo=Math.round(recaudo*100)/100;
+    const fI=fechaImport(g('fInicial')), kI=numImport(g('kmInicial'));
+    if(fI && fechaValida(fI)) fila.fInicialArchivo=fI;
+    if(!isNaN(kI)) fila.kmInicialArchivo=kI;
+    const rend=normCol(g('rendimiento'));
+    if(/^no\b|^n$/.test(rend) || (idx.kxg!=null && vacio(g('kxg')) && idx.rendimiento==null && !isNaN(kI))) fila.sinRendimiento=true;
+    impFilas.push(fila);
   }
+  // tramos: se respeta el F./KM INICIAL del archivo cuando no coincide con la recarga anterior
+  ['gnv','gas'].forEach(t=>{
+    const xs=impFilas.filter(f=>f.tipo===t).sort((a,b)=>a.fFinal.localeCompare(b.fFinal)||a.kmFinal-b.kmFinal);
+    const previas=ordenarRecargas(state.recargas.filter(r=>r.tipo===t));
+    xs.forEach((f,i)=>{
+      const ant=i>0?xs[i-1]:previas.filter(r=>r.fFinal<f.fFinal).pop();
+      if(f.kmInicialArchivo!=null && (!ant || num(ant.kmFinal)!==f.kmInicialArchivo)){ f.kmInicial=f.kmInicialArchivo; f.kmInicialManual=true; }
+      if(f.fInicialArchivo && (!ant || ant.fFinal!==f.fInicialArchivo)){ f.fInicial=f.fInicialArchivo; f.fInicialManual=true; }
+    });
+  });
   const nG=impFilas.filter(f=>f.tipo==='gnv').length, nS=impFilas.length-nG;
-  const rango=impFilas.length?(()=>{ const fs=impFilas.map(f=>f.fFinal).sort(); return `del ${fechaCorta(fs[0])} al ${fechaCorta(fs[fs.length-1])}`; })():'';
+  const recTot=impFilas.reduce((s,f)=>s+(f.recaudo||0),0), sinR=impFilas.filter(f=>f.sinRendimiento).length;
+  const fs=impFilas.map(f=>f.fFinal).sort();
+  const total=impFilas.reduce((s,f)=>s+f.galones*f.pxg,0);
   prev.innerHTML=`<div class="calc"><div style="font-size:15px;font-weight:700">${esc(impNombre)}</div>
-      <div style="margin-top:6px">${impFilas.length?`<b>${impFilas.length}</b> recarga${impFilas.length===1?'':'s'} lista${impFilas.length===1?'':'s'} para importar ${rango}`:'No hay recargas nuevas para importar.'}</div>
-      ${impFilas.length?`<div class="muted" style="font-size:14px">GNV: ${nG} · Gasolina: ${nS}</div>`:''}
+      <div style="margin-top:6px">${impFilas.length?`<b>${impFilas.length}</b> recarga${impFilas.length===1?'':'s'} lista${impFilas.length===1?'':'s'} para importar del ${fechaCorta(fs[0])} al ${fechaCorta(fs[fs.length-1])}`:'No hay recargas nuevas para importar.'}</div>
+      ${impFilas.length?`<div class="muted" style="font-size:14px">GNV: ${nG} · Gasolina: ${nS} · ${dinero(total,'PEN')}${recTot>0?' + recaudo '+dinero(recTot,'PEN'):''}</div>`:''}
+      ${impKm.length?`<div class="muted" style="font-size:14px">${impKm.length} fila${impKm.length===1?'':'s'} sin carga: se guarda${impKm.length===1?'':'n'} como lectura${impKm.length===1?'':'s'} de km.</div>`:''}
+      ${sinR?`<div class="muted" style="font-size:14px">${sinR} no cuenta${sinR===1?'':'n'} en el rendimiento (tramo incompleto o marcado «NO»).</div>`:''}
       ${dup?`<div class="muted" style="font-size:14px">${dup} ya estaban registradas (se omiten).</div>`:''}</div>
     ${errores.length?`<div class="alert warn" style="margin-top:10px">${errores.length} fila${errores.length===1?'':'s'} con problemas (no se importan):<br>${errores.slice(0,6).map(esc).join('<br>')}${errores.length>6?'<br>…':''}</div>`:''}
-    ${impFilas.length?`<div class="card" style="padding:4px 14px;margin-top:10px">${impFilas.slice(0,4).map(f=>`<div class="list-row" style="font-size:14px"><span style="flex:1">${COMB_LABEL[f.tipo]} · ${fechaCorta(f.fFinal)}</span><span class="mono">${fmtKm(f.kmFinal)} km · ${fmtN(f.galones,2)} ${UNID[f.tipo].u} · ${dinero(f.galones*f.pxg,'PEN')}</span></div>`).join('')}${impFilas.length>4?`<div class="muted" style="font-size:13px;padding:6px 0">y ${impFilas.length-4} más…</div>`:''}</div>`:''}`;
-  btn.disabled=!impFilas.length;
-  btn.textContent=impFilas.length?`Importar ${impFilas.length} recarga${impFilas.length===1?'':'s'}`:'Importar';
+    ${impFilas.length?`<div class="card" style="padding:4px 14px;margin-top:10px">${impFilas.slice(0,4).map(f=>`<div class="list-row" style="font-size:14px"><span style="flex:1">${COMB_LABEL[f.tipo]} · ${fechaCorta(f.fFinal)}</span><span class="mono">${fmtKm(f.kmFinal)} km · ${fmtN(f.galones,2)} ${UNID[f.tipo].u} · ${dinero(f.galones*f.pxg,'PEN')}${f.recaudo?' + '+dinero(f.recaudo,'PEN'):''}</span></div>`).join('')}${impFilas.length>4?`<div class="muted" style="font-size:13px;padding:6px 0">y ${impFilas.length-4} más…</div>`:''}</div>`:''}`;
+  btn.disabled=!(impFilas.length||impKm.length);
+  btn.textContent=impFilas.length?`Importar ${impFilas.length} recarga${impFilas.length===1?'':'s'}`:(impKm.length?`Importar ${impKm.length} lectura${impKm.length===1?'':'s'} de km`:'Importar');
 }
 async function confirmarImport(){
-  if(!impFilas.length) return;
-  const filas=impFilas.slice(), base=Date.now();
-  const recs=filas.map((f,i)=>({id:nuevoId('rec')+'-h'+i, creado:base+i, importado:true, ...f, gastoRegistrado:{tipo:'historico', id:null}}));
+  if(!impFilas.length && !impKm.length) return;
+  const filas=impFilas.slice(), kms=impKm.slice(), base=Date.now();
+  const ops=filas.map((f,i)=>{ const r={id:nuevoId('rec')+'-h'+i, creado:base+i, importado:true, tipo:f.tipo, fFinal:f.fFinal, kmFinal:f.kmFinal, galones:f.galones, pxg:f.pxg, gastoRegistrado:{tipo:'historico', id:null}};
+    ['recaudo','sinRendimiento','fInicial','fInicialManual','kmInicial','kmInicialManual'].forEach(k=>{ if(f[k]!=null) r[k]=f[k]; });
+    return {c:'recargas',data:r}; })
+    .concat(kms.map((k,i)=>({c:'km',data:{id:nuevoId('kmm')+'-h'+i, km:k.km, fechaHora:k.fecha+'T12:00', origen:'importado', motivo:'Lectura importada (sin recarga)'}})));
   // lotes de 300 (Firestore admite hasta 500 escrituras por lote)
-  for(let i=0;i<recs.length;i+=300){
-    const parte=recs.slice(i,i+300), np=Math.ceil(recs.length/300);
-    await DB.guardar(parte.map(r=>({c:'recargas',data:r})), `Importó histórico de combustible: ${parte.length} recargas${np>1?' (parte '+(i/300+1)+' de '+np+')':''} (${impNombre})`).catch(()=>{});
-  }
+  const np=Math.ceil(ops.length/300);
+  for(let i=0;i<ops.length;i+=300) await DB.guardar(ops.slice(i,i+300), `Importó histórico de combustible: ${filas.length} recargas${kms.length?' y '+kms.length+' lecturas de km':''}${np>1?' (parte '+(i/300+1)+' de '+np+')':''} (${impNombre})`).catch(()=>{});
   cerrarHoja('sh-import'); cerrarHoja('sh-config');
   const nG=filas.filter(f=>f.tipo==='gnv').length;
-  irA('combustible'); cambiarTipoComb(nG?'gnv':'gas');
-  toast(`Histórico importado: ${filas.length} recargas`, undoBtn());
+  irA('combustible'); cambiarTipoComb(nG||!filas.length?'gnv':'gas');
+  toast(`Histórico importado: ${filas.length} recargas${kms.length?' y '+kms.length+' lecturas de km':''}`, undoBtn());
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2391,8 +2468,10 @@ function calcularFilas(tipo){
     r.kmUsado    = (!isNaN(kmI)&&!isNaN(kmF)) ? kmF-kmI : null;
     r.dt         = (r.fInicial&&r.fFinal) ? diasEntre(r.fInicial,r.fFinal) : null;
     r.kmDiarios  = (r.kmUsado!==null&&r.dt>0) ? r.kmUsado/r.dt : null;
-    r.kxg        = (r.kmUsado!==null&&gal>0) ? r.kmUsado/gal : null;
+    r.kxg        = (r.kmUsado!==null&&gal>0&&!r.sinRendimiento) ? r.kmUsado/gal : null;
     r.total      = (gal>0&&pxg>0) ? gal*pxg : null;
+    r.recaudo    = num(r.recaudo)>0 ? num(r.recaudo) : 0;
+    r.totalPagado= r.total!==null ? r.total+r.recaudo : null;
     r.montoDiario= (r.total!==null&&r.dt>0) ? r.total/r.dt : null;
     const pp=prev?num(prev.pxg):NaN;
     r.pxgVar     = (pp>0&&pxg>0) ? ((pxg/pp)-1)*100 : null;
@@ -2414,6 +2493,7 @@ function renderCombustible(){
   document.getElementById('btn-nueva-recarga').textContent='+ Nueva recarga de '+COMB_LABEL[t];
   const filas=calcularFilas(t);
   renderResumenComb(filas);
+  tarjetaGnv(filas);
   renderGraficoComb(filas);
   renderListaRecargas(filas);
   renderMantenimiento();
@@ -2422,7 +2502,7 @@ function renderResumenComb(rows){
   const U=UNID[ui.tipoComb];
   const el=document.getElementById('comb-resumen');
   if(!rows.length){ el.innerHTML=''; return; }
-  const comp=rows.filter(r=>r.kmUsado!==null&&r.kxg!==null);
+  const comp=rows.filter(r=>r.kmUsado!==null&&r.kmUsado>0&&r.kxg!==null); // los tramos con km negativo (error de datos) no cuentan
   const kmTot=comp.reduce((s,r)=>s+r.kmUsado,0);
   const galComp=comp.reduce((s,r)=>s+(num(r.galones)||0),0);
   const galTot=rows.reduce((s,r)=>s+(num(r.galones)||0),0);
@@ -2439,6 +2519,7 @@ function renderResumenComb(rows){
     <div class="card kpi"><div class="lbl">Rendimiento</div><div class="v" style="color:var(--teal)">${kxg!==null?fmtN(kxg,1)+' '+U.rend:'—'}</div></div>
     <div class="card kpi"><div class="lbl">Total gastado</div><div class="v" style="color:var(--amber)">${gasto>0?dinero(gasto,'PEN'):'—'}</div></div>
     <div class="card kpi"><div class="lbl">${U.cantK}</div><div class="v" style="color:var(--purple)">${galTot>0?fmtN(galTot,1)+' '+U.u:'—'}</div></div>
+    ${rows.some(r=>r.recaudo>0)?`<div class="card kpi" style="grid-column:span 2"><div class="row" style="flex-wrap:wrap;align-items:flex-start"><div><div class="lbl">Pagado en el grifo</div><div class="v">${dinero(gasto+rows.reduce((s,r)=>s+r.recaudo,0),'PEN')}</div></div><div style="text-align:right;font-size:13px;color:var(--text3)">GNV ${dinero(gasto,'PEN')}<br>+ recaudo ${dinero(rows.reduce((s,r)=>s+r.recaudo,0),'PEN')}</div></div></div>`:''}
     <div class="card kpi" style="grid-column:span 2"><div class="row" style="flex-wrap:wrap"><div><div class="lbl">${U.precio} actual</div><div class="v" style="color:var(--green)">${ult?dinero(num(ult.pxg),'PEN'):'—'}</div></div>${dif}</div></div>
   </div>`;
 }
@@ -2490,10 +2571,11 @@ function renderListaRecargas(rows){
     return `<button class="card rec-card" style="text-align:left;width:100%" onclick="abrirRecarga('${esc(r.id)}')" aria-label="Editar recarga del ${fechaCorta(r.fFinal)}">
       <div class="row"><span style="font-size:16px;font-weight:700">${tramo}</span><span class="muted" style="font-size:13px">${r.dt!==null?r.dt+' día'+(r.dt===1?'':'s'):''}</span></div>
       <div class="row" style="margin-top:4px"><span class="mono" style="font-size:14px;color:var(--text2)">${kmTxt}</span><span class="mono" style="font-size:18px">${r.total!==null?dinero(r.total,'PEN'):'—'}</span></div>
+      ${r.recaudo>0?`<div class="row" style="margin-top:2px;font-size:13px;color:var(--text3)"><span>+ recaudo instalación ${dinero(r.recaudo,'PEN')}</span><span>pagado ${dinero(r.totalPagado,'PEN')}</span></div>`:''}
       <div class="metrics">
         <div><div class="k">Recorrido</div><div class="v15">${r.kmUsado!==null?fmtKm(r.kmUsado)+' km':'—'}</div></div>
         <div><div class="k">${U.cantK}</div><div class="v15">${fmtN(num(r.galones),2)}</div></div>
-        <div><div class="k">${U.rendTab}</div><div class="v15" style="color:var(--teal)">${r.kxg!==null?fmtN(r.kxg,1):'—'}</div></div>
+        <div><div class="k">${U.rendTab}</div><div class="v15" style="color:var(--teal)">${r.kxg!==null?fmtN(r.kxg,1):(r.sinRendimiento?'<span style="font-size:12px;color:var(--text3)">no cuenta</span>':'—')}</div></div>
         <div><div class="k">${U.precioK}</div><div class="v15">${num(r.pxg)>0?'S/ '+fmtN(num(r.pxg),2):'—'}</div></div>
         <div><div class="k">Km/día</div><div class="v15">${r.kmDiarios!==null?fmtN(r.kmDiarios,1):'—'}</div></div>
         <div><div class="k">Pagó con</div>${pago}</div>
@@ -2527,6 +2609,9 @@ function abrirRecarga(id){
   sel.innerHTML=opcionesCuentas('PEN', def)+`<option value="__no"${def==='__no'?' selected':''}>No registrar como gasto</option><option value="__manual"${def==='__manual'?' selected':''}>Ya lo registré por otro lado</option>${def==='__hist'?'<option value="__hist" selected>Histórico (importado, sin gasto)</option>':''}`;
   sel.value=def;
   document.getElementById('rec-borrar').classList.toggle('hidden', !r);
+  document.getElementById('rec-recaudo').value=r&&num(r.recaudo)>0?fmtN(num(r.recaudo),2):'';
+  recRecaudoTocado=!!r;
+  document.getElementById('rec-sinrend').checked=!!(r&&r.sinRendimiento);
   recRecalcular();
   abrirHoja('sh-recarga');
 }
@@ -2566,6 +2651,7 @@ function recAnterior(tipo, fecha, km, excluirId){
   return prev;
 }
 function recRecalcular(){
+  recRecaudoUI();
   const fecha=document.getElementById('rec-fecha').value, km=num(document.getElementById('rec-km').value);
   const gal=num(document.getElementById('rec-gal').value);
   const prev=recAnterior(recTipo, fecha, km, recEdit);
@@ -2580,7 +2666,7 @@ function recRecalcular(){
   } else {
     const kmU=(!isNaN(km)&&!isNaN(iniK))?km-iniK:null, d=(iniF&&fecha)?diasEntre(iniF,fecha):null;
     h=`Desde ${usaManual?'':'la recarga anterior '}<b>${fechaBonita(iniF)}</b>${!isNaN(iniK)?' · '+fmtKm(iniK)+' km':''}`;
-    if(kmU!==null) h+=`<br>Recorrido: <b>${fmtKm(kmU)} km</b>${d>0?' en '+d+' día'+(d===1?'':'s'):''}${gal>0&&kmU>0?' · <b>'+fmtN(kmU/gal,1)+' '+UNID[recTipo].rend+'</b>':''}`;
+    if(kmU!==null) h+=`<br>Recorrido: <b>${fmtKm(kmU)} km</b>${d>0?' en '+d+' día'+(d===1?'':'s'):''}${gal>0&&kmU>0&&!document.getElementById('rec-sinrend').checked?' · <b>'+fmtN(kmU/gal,1)+' '+UNID[recTipo].rend+'</b>':''}`;
     if(!usaManual) h+=`<br><button class="btn-link" style="padding:0" onclick="recMostrarInicio()">Corregir el inicio del tramo</button>`;
   }
   document.getElementById('rec-tramo').innerHTML=h;
@@ -2614,6 +2700,9 @@ async function guardarRecarga(){
   const antes=recEdit?JSON.parse(JSON.stringify(state.recargas.find(x=>x.id===recEdit)||null)):null;
   const r=antes?{...antes}:{id:nuevoId('rec'), creado:Date.now()};
   Object.assign(r,{tipo:recTipo, fFinal:fecha, kmFinal:km, galones:+gal.toFixed(3), pxg:+pxg.toFixed(3)});
+  const recaudo=recTipo==='gnv'?Math.max(0,+(num(document.getElementById('rec-recaudo').value)||0).toFixed(2)):0;
+  if(recaudo>0) r.recaudo=recaudo; else delete r.recaudo;
+  if(document.getElementById('rec-sinrend').checked) r.sinRendimiento=true; else delete r.sinRendimiento;
   // Inicio del tramo: manual solo si el usuario lo abrió y puso datos distintos a la recarga anterior
   if(wrapAbierto && fI && (!prev || fI!==prev.fFinal)){ r.fInicial=fI; r.fInicialManual=true; } else { delete r.fInicial; delete r.fInicialManual; }
   if(wrapAbierto && !isNaN(kI) && (!prev || kI!==num(prev.kmFinal))){ r.kmInicial=kI; r.kmInicialManual=true; } else { delete r.kmInicial; delete r.kmInicialManual; }
@@ -2635,20 +2724,143 @@ async function guardarRecarga(){
     }
     if(pago==='__manual') r.gastoRegistrado={tipo:'manual', id:null}; else if(pago==='__hist') r.gastoRegistrado={tipo:'historico', id:null}; else delete r.gastoRegistrado;
   }
+  // Recaudo: gasto aparte («Instalación GNV») con la misma cuenta, y abono a la deuda vinculada
+  const recMovAntes=antes&&antes.recaudoMovId?state.movimientos.find(m=>m.id===antes.recaudoMovId):null;
+  const cuentaRec=getCuenta(pago);
+  if(recaudo>0 && cuentaRec){
+    const mv=recMovAntes?{...recMovAntes}:{id:nuevoId('mov'), creado:Date.now(), hora:horaLima()};
+    Object.assign(mv,{type:'expense', desc:`Recaudo GNV - ${fechaCorta(fecha)}`, amount:recaudo, account:cuentaRec.id, date:fecha, currency:'PEN', cat:CAT_RECAUDO, origen:'combustible', recargaId:r.id, esRecaudo:true});
+    ops.push({c:'movimientos',data:mv}); r.recaudoMovId=mv.id;
+    if(!catExistente('gasto',CAT_RECAUDO)) ops.push({c:'ajustes',data:docCats(d=>d.gasto.push(CAT_RECAUDO))});
+  } else { if(recMovAntes) ops.push({c:'movimientos',id:recMovAntes.id,del:true}); delete r.recaudoMovId; }
+  // deuda de la instalación: un abono por recarga (se actualiza si se edita)
+  const dg=deudaGnv(), histo=r.gastoRegistrado&&r.gastoRegistrado.tipo==='historico';
+  const dueñaAntes=state.deudas.find(d=>(d.abonos||[]).some(a=>a.recargaId===r.id));
+  if(dueñaAntes && (!dg || dueñaAntes.id!==dg.id || !(recaudo>0) || histo)) ops.push({c:'deudas',data:{...dueñaAntes, abonos:dueñaAntes.abonos.filter(a=>a.recargaId!==r.id)}});
+  if(dg && recaudo>0 && !histo){
+    const otros=(dg.abonos||[]).filter(a=>a.recargaId!==r.id), saldoSin=Math.max(0,(num(dg.monto)||0)-otros.reduce((s,a)=>s+(num(a.monto)||0),0));
+    const prevAb=(dg.abonos||[]).find(a=>a.recargaId===r.id), monto=Math.min(recaudo, saldoSin);
+    if(monto>0.004) ops.push({c:'deudas',data:{...dg, abonos:[...otros, {id:prevAb?prevAb.id:nuevoId('abo'), monto:+monto.toFixed(2), fecha, movId:r.recaudoMovId||null, recargaId:r.id}]}});
+    else if(prevAb) ops.push({c:'deudas',data:{...dg, abonos:otros}});
+  }
   ops.unshift({c:'recargas',data:r});
-  DB.guardar(ops, `${recEdit?'Editó':'Registró'} recarga de ${COMB_LABEL[recTipo]} del ${fechaCorta(fecha)} · ${dinero(total,'PEN')}`).catch(()=>{});
+  DB.guardar(ops, `${recEdit?'Editó':'Registró'} recarga de ${COMB_LABEL[recTipo]} del ${fechaCorta(fecha)} · ${dinero(total,'PEN')}${recaudo>0?' + recaudo '+dinero(recaudo,'PEN'):''}`).catch(()=>{});
   cerrarHoja('sh-recarga');
   if(recTipo!==ui.tipoComb) cambiarTipoComb(recTipo);
-  toast(recEdit?'Recarga actualizada':`Recarga guardada${r.gastoRegistrado&&r.gastoRegistrado.tipo==='cuenta'?' · gasto de '+dinero(total,'PEN')+' en '+nombreCuenta(pago):''}`);
+  toast(recEdit?'Recarga actualizada':`Recarga guardada${r.gastoRegistrado&&r.gastoRegistrado.tipo==='cuenta'?' · gasto de '+dinero(total+recaudo,'PEN')+' en '+nombreCuenta(pago):''}${dg&&recaudo>0&&!histo?' · deuda de instalación: −'+dinero(recaudo,'PEN'):''}`);
 }
 async function borrarRecarga(){
   const r=state.recargas.find(x=>x.id===recEdit); if(!r) return;
   const g=r.gastoRegistrado, mv=(g&&g.tipo==='cuenta')?state.movimientos.find(m=>m.id===g.id):null;
-  if(!await confirmar('¿Eliminar esta recarga?', `${COMB_LABEL[r.tipo]} del ${fechaCorta(r.fFinal)}.${mv?`<br>También se elimina su gasto de ${dinero(num(mv.amount),'PEN')} en ${esc(nombreCuenta(mv.account))} (el dinero vuelve a la cuenta).`:''}`,'Eliminar',true)) return;
+  if(!await confirmar('¿Eliminar esta recarga?', `${COMB_LABEL[r.tipo]} del ${fechaCorta(r.fFinal)}.${mv?`<br>También se elimina su gasto de ${dinero(num(mv.amount),'PEN')} en ${esc(nombreCuenta(mv.account))} (el dinero vuelve a la cuenta).`:''}${num(r.recaudo)>0?`<br>Y su recaudo de ${dinero(num(r.recaudo),'PEN')}${state.deudas.some(d=>(d.abonos||[]).some(a=>a.recargaId===r.id))?' (la deuda de la instalación vuelve a subir)':''}.`:''}`,'Eliminar',true)) return;
   const ops=[{c:'recargas',id:r.id,del:true}]; if(mv) ops.push({c:'movimientos',id:mv.id,del:true});
+  if(r.recaudoMovId && state.movimientos.some(m=>m.id===r.recaudoMovId)) ops.push({c:'movimientos',id:r.recaudoMovId,del:true});
+  const dAb=state.deudas.find(d=>(d.abonos||[]).some(a=>a.recargaId===r.id));
+  if(dAb) ops.push({c:'deudas',data:{...dAb, abonos:dAb.abonos.filter(a=>a.recargaId!==r.id)}});
   DB.guardar(ops, `Eliminó recarga de ${COMB_LABEL[r.tipo]} del ${fechaCorta(r.fFinal)}`).catch(()=>{});
   cerrarHoja('sh-recarga');
   toast('Recarga eliminada',undoBtn());
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  RECAUDO GNV — en cada recarga de GNV se cobra un monto extra que paga la
+//  deuda de la instalación del sistema. Se guarda aparte del consumo (no
+//  infla el precio del GNV), se registra como gasto «Instalación GNV» y, si
+//  hay una deuda vinculada, la descuenta sola.
+// ══════════════════════════════════════════════════════════════════
+const CAT_RECAUDO='Instalación GNV';
+function ajusteGnv(){ return state.ajustes.find(x=>x.id==='gnv')||{id:'gnv'}; }
+function deudaGnv(){ const id=ajusteGnv().deudaId; return id?state.deudas.find(d=>d.id===id)||null:null; }
+// % del recaudo respecto al GNV en la última recarga que lo tuvo (para sugerirlo)
+function ratioRecaudo(){
+  const r=ordenarRecargas(state.recargas.filter(x=>x.tipo==='gnv'&&num(x.recaudo)>0&&num(x.galones)>0&&num(x.pxg)>0)).pop();
+  return r?num(r.recaudo)/(num(r.galones)*num(r.pxg)):null;
+}
+let recRecaudoTocado=false;
+function recRecaudoUI(){
+  const gnv=recTipo==='gnv';
+  document.getElementById('rec-recaudo-wrap').classList.toggle('hidden', !gnv);
+  document.getElementById('rec-total-lbl').textContent=gnv?'Total del GNV, sin recaudo (S/)':'Total pagado (S/)';
+  const gal=num(document.getElementById('rec-gal').value), pxg=num(document.getElementById('rec-pxg').value);
+  const total=(gal>0&&pxg>0)?gal*pxg:NaN, inp=document.getElementById('rec-recaudo'), ratio=ratioRecaudo();
+  if(gnv && !recRecaudoTocado && ratio && total>0) inp.value=fmtN(total*ratio,2);
+  const rec=gnv?(num(inp.value)||0):0;
+  document.getElementById('rec-recaudo-nota').textContent=ratio?`Sugerido: ${Math.round(ratio*100)}% del GNV, como tu última recarga. Cámbialo si el voucher dice otro monto.`:'El monto extra del voucher que paga la instalación (0 si no tiene).';
+  const tp=document.getElementById('rec-pagado');
+  tp.classList.toggle('hidden', !(gnv && total>0));
+  if(gnv && total>0) tp.innerHTML=`Total pagado en el grifo: <b class="mono">${dinero(total+rec,'PEN')}</b> <span class="muted">(GNV ${dinero(total,'PEN')} + recaudo ${dinero(rec,'PEN')})</span>`;
+}
+function recargasConRecaudo(){ return state.recargas.filter(r=>r.tipo==='gnv'&&num(r.recaudo)>0); }
+function tarjetaGnv(rows){
+  const el=document.getElementById('comb-gnv');
+  if(ui.tipoComb!=='gnv'){ el.innerHTML=''; return; }
+  const conRec=rows.filter(r=>num(r.recaudo)>0), pagadoRec=conRec.reduce((s,r)=>s+num(r.recaudo),0), prom=conRec.length?pagadoRec/conRec.length:0;
+  const d=deudaGnv();
+  let h=`<div class="card pad"><div class="row"><span style="font-size:17px;font-weight:700">Deuda de la instalación GNV</span><button class="btn btn-sm" onclick="abrirGnvDeuda()">${d?'Editar':'Agregar'}</button></div>`;
+  if(d){
+    const total=num(d.monto)||0, falta=saldoDeuda(d), pagado=total-falta, pct=total>0?Math.min(100,pagado/total*100):0;
+    h+=`<div class="grid3" style="margin-top:12px">
+        <div class="calc" style="padding:10px"><div class="k">Deuda total</div><div class="mono" style="font-size:16px">${dinero(total,d.moneda)}</div></div>
+        <div class="calc" style="padding:10px"><div class="k">Pagado</div><div class="mono" style="font-size:16px;color:var(--green)">${dinero(pagado,d.moneda)}</div></div>
+        <div class="calc" style="padding:10px"><div class="k">Falta</div><div class="mono" style="font-size:16px;color:${falta>0.004?'var(--red)':'var(--green)'}">${dinero(falta,d.moneda)}</div></div></div>
+      <div class="bar" style="margin-top:12px"><div style="width:${pct.toFixed(0)}%;background:var(--green)"></div></div>
+      <div class="muted" style="font-size:13px;margin-top:6px">${falta<=0.004?'¡Deuda pagada!':`${pct.toFixed(0)}% pagado${prom>0?` · a ≈ ${dinero(prom,'PEN')} por recarga faltan ≈ ${Math.ceil(falta/prom)} recargas`:''}`}</div>
+      <div class="muted" style="font-size:13px;margin-top:4px">Cada recaudo que anotes en una recarga se descuenta solo.</div>`;
+  } else {
+    h+=`<div class="muted" style="font-size:14px;margin-top:6px">Anota el monto total de la deuda por la instalación y la app irá descontando el recaudo de cada recarga.</div>
+      ${conRec.length?`<div class="row" style="margin-top:10px;font-size:14px"><span>Recaudo ya pagado</span><span class="mono">${dinero(pagadoRec,'PEN')} <span class="muted">(${conRec.length} recarga${conRec.length===1?'':'s'})</span></span></div>`:''}
+      <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="abrirGnvDeuda()">+ Agregar monto de la deuda</button>`;
+  }
+  el.innerHTML=h+'</div>';
+}
+function abrirGnvDeuda(){
+  const d=deudaGnv(), recs=recargasConRecaudo(), suma=recs.reduce((s,r)=>s+num(r.recaudo),0);
+  document.getElementById('gnvd-monto').value=d?fmtN(num(d.monto),2):'';
+  document.getElementById('gnvd-nombre').value=d?d.persona:'Instalación GNV';
+  const yaDesc=d?recs.filter(r=>(d.abonos||[]).some(a=>a.recargaId===r.id)):[];
+  const pend=recs.filter(r=>!yaDesc.includes(r)), sumaPend=pend.reduce((s,r)=>s+num(r.recaudo),0);
+  document.getElementById('gnvd-desc-wrap').classList.toggle('hidden', !pend.length);
+  document.getElementById('gnvd-desc').checked=true;
+  document.getElementById('gnvd-desc-lbl').innerHTML=`Descontar los recaudos que ya están en la app: <b>${dinero(sumaPend,'PEN')}</b> (${pend.length} recarga${pend.length===1?'':'s'})`;
+  const otras=state.deudas.filter(x=>x.direccion==='yo_debo'&&x.moneda!=='USD'&&(!d||x.id!==d.id));
+  const sel=document.getElementById('gnvd-sel');
+  sel.innerHTML='<option value="">— Escribir el monto aquí —</option>'+otras.map(x=>`<option value="${esc(x.id)}">Usar «${esc(x.persona)}» (debes ${dinero(saldoDeuda(x),x.moneda)})</option>`).join('');
+  sel.value='';
+  document.getElementById('gnvd-sel-wrap').classList.toggle('hidden', !!d || !otras.length);
+  document.getElementById('gnvd-quitar').classList.toggle('hidden', !d);
+  document.getElementById('gnvd-title').textContent=d?'Editar deuda de la instalación':'Deuda de la instalación GNV';
+  gnvdUI(); abrirHoja('sh-gnvdeuda');
+}
+function gnvdUI(){ const usar=document.getElementById('gnvd-sel').value; document.getElementById('gnvd-nueva').classList.toggle('hidden', !!usar); }
+function guardarGnvDeuda(){
+  const ops=[], d=deudaGnv(), usar=document.getElementById('gnvd-sel').value;
+  let deuda;
+  if(usar){ deuda={...state.deudas.find(x=>x.id===usar)}; }
+  else {
+    const monto=num(document.getElementById('gnvd-monto').value), nombre=document.getElementById('gnvd-nombre').value.trim()||'Instalación GNV';
+    if(!(monto>0)){ toast('Pon el monto total de la deuda.',{error:true}); return; }
+    deuda=d?{...d}:{id:nuevoId('deu'), creado:Date.now(), direccion:'yo_debo', moneda:'PEN', fecha:hoyLima(), nota:'Se paga con el recaudo de cada recarga de GNV', abonos:[]};
+    Object.assign(deuda,{persona:nombre, monto:+monto.toFixed(2)});
+  }
+  // descontar los recaudos que ya existen (cada recarga, un abono)
+  if(!document.getElementById('gnvd-desc-wrap').classList.contains('hidden') && document.getElementById('gnvd-desc').checked){
+    const ab=[...(deuda.abonos||[])];
+    recargasConRecaudo().filter(r=>!ab.some(a=>a.recargaId===r.id)).sort((a,b)=>(a.fFinal||'').localeCompare(b.fFinal||''))
+      .forEach(r=>ab.push({id:nuevoId('abo'), monto:num(r.recaudo), fecha:r.fFinal, movId:r.recaudoMovId||null, recargaId:r.id}));
+    deuda.abonos=ab;
+  }
+  const pagado=(deuda.abonos||[]).reduce((s,a)=>s+(num(a.monto)||0),0);
+  if(pagado>num(deuda.monto)+0.004){ toast(`Los recaudos (${dinero(pagado,'PEN')}) ya superan ese monto. Pon el total de la deuda al instalar.`,{error:true}); return; }
+  ops.push({c:'deudas',data:deuda});
+  ops.push({c:'ajustes',data:{...ajusteGnv(), deudaId:deuda.id}});
+  DB.guardar(ops, `${d?'Editó':'Anotó'} la deuda de la instalación GNV: ${dinero(num(deuda.monto),'PEN')}${pagado?' (pagado '+dinero(pagado,'PEN')+')':''}`).catch(()=>{});
+  cerrarHoja('sh-gnvdeuda'); toast(`Deuda de la instalación: falta ${dinero(Math.max(0,num(deuda.monto)-pagado),'PEN')}`, undoBtn());
+}
+async function quitarGnvDeuda(){
+  if(!await confirmar('¿Dejar de descontar el recaudo?','La deuda se conserva en «Quién me debe / a quién le debo», pero los próximos recaudos ya no la descontarán.','Desvincular',true)) return;
+  const a={...ajusteGnv()}; delete a.deudaId;
+  DB.guardar([{c:'ajustes',data:a}], 'Desvinculó la deuda de la instalación GNV').catch(()=>{});
+  cerrarHoja('sh-gnvdeuda'); toast('Desvinculada', undoBtn());
 }
 
 // ══════════════════════════════════════════════════════════════════
