@@ -673,20 +673,20 @@ textarea.inp{padding:12px 14px;min-height:80px}
 //  FINANZAS PAPÁ — app liviana basada en DB FINANCE (app de Miguel)
 //  Parte 1: base (login, cuentas, guardado) + Combustible completo.
 // ══════════════════════════════════════════════════════════════════
-const APP_VERSION = 'v1.10.0';
-const APP_VERSION_DATE = '11/10/26 - 22:15'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'v1.10.0: la caja «Última actualización · sincronizado» pasa arriba a la derecha (junto a la fecha) en las 3 pantallas, y se agrega un botón de candado para cerrar sesión (pide confirmación) al lado de Configuración.';
+const APP_VERSION = 'v1.10.1';
+const APP_VERSION_DATE = '11/10/26 - 22:28'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'v1.10.1: conectada al proyecto Firebase financepapa-8d739 (sin cambios de funciones).';
 
 // ── Pega aquí la configuración web del Firebase de tu papá ──
 // (Firebase → Configuración del proyecto → Tus apps → Web). No es secreta:
 // la protección real son las reglas de Firestore y el inicio de sesión.
 const FIREBASE_CONFIG = {
-  apiKey: "PEGA_AQUI_TU_API_KEY",
-  authDomain: "PEGA_AQUI.firebaseapp.com",
-  projectId: "PEGA_AQUI",
-  storageBucket: "PEGA_AQUI.firebasestorage.app",
-  messagingSenderId: "PEGA_AQUI",
-  appId: "PEGA_AQUI"
+  apiKey: "AIzaSyDV4Ne3ecteFq7mlGd4IhKpB0SmqPArov0",
+  authDomain: "financepapa-8d739.firebaseapp.com",
+  projectId: "financepapa-8d739",
+  storageBucket: "financepapa-8d739.firebasestorage.app",
+  messagingSenderId: "328342192120",
+  appId: "1:328342192120:web:0d4ff8e02ccbdeab6ce00d"
 };
 const DOC_ID = 'papa'; // todo vive en users/papa/...
 const COLECCIONES = ['cuentas','movimientos','recargas','km','mantenimientos','actividad','ajustes','frecuentes','deudas'];
