@@ -55,6 +55,12 @@ nav.tabs .wrap{display:flex;width:100%;max-width:560px}
 nav.tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 12px;border:none;background:none;font-size:13px;font-weight:600;color:var(--text3);min-height:60px}
 nav.tabs button svg{width:25px;height:25px}
 nav.tabs button.on{color:var(--accent)}
+.side-brand,.side-sep,nav.tabs .side-only{display:none}
+/* columnas: en celular se apilan en el mismo orden; en computadora, 2 columnas */
+.cols2,.top2{display:flex;flex-direction:column;gap:16px;min-width:0}
+.col{display:contents}
+.top2>:only-child{grid-column:1/-1}
+
 
 /* ── Components ── */
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 1px 4px rgba(0,0,0,.05)}
@@ -149,6 +155,35 @@ textarea.inp{padding:12px 14px;min-height:80px}
 .chart-box{position:relative;height:200px;margin-top:14px}
 .h1-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .h1-buscar{display:inline-flex;align-items:center;gap:6px;flex-shrink:0}
+/* ══ COMPUTADORA (≥ 1024 px): barra lateral + contenido ancho en 2 columnas ══ */
+@media (min-width:1024px){
+  #app{max-width:none;margin:0 0 0 240px;padding-bottom:40px}
+  #app>section{max-width:1180px;margin:0 auto;padding:10px 24px 0}
+  .topbar{padding:18px 18px 6px}
+  .topbar h1{font-size:32px}
+  .topbar .top-acc .icon-btn{display:none}
+  nav.tabs{top:0;right:auto;width:240px;bottom:0;border-top:none;border-right:1px solid var(--border2);padding:22px 14px;justify-content:flex-start}
+  nav.tabs .wrap{flex-direction:column;max-width:none;gap:4px;height:100%}
+  nav.tabs button{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:12px;padding:12px 14px;border-radius:12px;font-size:16px;min-height:48px;text-align:left}
+  nav.tabs button svg{width:22px;height:22px}
+  nav.tabs button:hover{background:var(--bg3);color:var(--text)}
+  nav.tabs button.on{background:var(--accent-bg);color:var(--accent-dark)}
+  .side-brand{display:flex;align-items:center;gap:12px;padding:0 8px 20px}
+  .side-brand .logo{width:42px;height:42px;border-radius:12px;margin:0}
+  .side-brand .logo svg{width:22px;height:22px}
+  .side-sep{display:block;flex:1}
+  nav.tabs .side-only{display:flex}
+  .cols2{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start}
+  .col{display:flex;flex-direction:column;gap:18px;min-width:0}
+  .top2{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:start}
+  .page{padding:12px 18px 28px;gap:18px}
+  .kpis4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .sheet{align-items:center}
+  .sheet .panel{border-radius:22px;max-height:88vh}
+  .sheet .panel .grab{display:none}
+  #toast{left:calc(50% + 120px);bottom:28px}
+  .btn-big.solo-cel{display:none}
+}
 </style>
 </head>
 <body>
@@ -193,8 +228,17 @@ textarea.inp{padding:12px 14px;min-height:80px}
 <!-- ══ APP ══ -->
 <div id="app" class="hidden">
 
+  <!-- ─── RESUMEN ─── -->
+  <section id="page-resumen" data-page="resumen">
+    <div class="topbar">
+      <div class="topbar-row"><div class="sub" id="hoy-label-0"></div><div class="top-acc"><div class="syncbox" id="sync-0" role="status"><div class="k">Última actualización</div><div class="t">—</div><div class="st"><i></i><span>sincronizado</span></div></div><button class="icon-btn" aria-label="Cerrar sesión" title="Cerrar sesión" onclick="salir()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><circle cx="12" cy="16" r="1.2" fill="currentColor"/></svg></button><button class="icon-btn" aria-label="Configuración" onclick="abrirConfig()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div></div>
+      <div class="h1-row"><h1>Resumen</h1><button class="btn btn-sm h1-buscar" aria-label="Buscar en todos los meses" onclick="abrirBuscar()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Buscar</button></div>
+    </div>
+    <div class="page" id="res-body"></div>
+  </section>
+
   <!-- ─── DISPONIBLE ─── -->
-  <section id="page-disponible" data-page="disponible">
+  <section id="page-disponible" data-page="disponible" class="hidden">
     <div class="topbar">
       <div class="topbar-row"><div class="sub" id="hoy-label"></div><div class="top-acc"><div class="syncbox" id="sync-1" role="status"><div class="k">Última actualización</div><div class="t">—</div><div class="st"><i></i><span>sincronizado</span></div></div><button class="icon-btn" aria-label="Cerrar sesión" title="Cerrar sesión" onclick="salir()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><circle cx="12" cy="16" r="1.2" fill="currentColor"/></svg></button><button class="icon-btn" aria-label="Configuración" onclick="abrirConfig()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div></div>
       <div class="h1-row"><h1>Disponible</h1><button class="btn btn-sm h1-buscar" aria-label="Buscar en todos los meses" onclick="abrirBuscar()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Buscar</button></div>
@@ -223,6 +267,7 @@ textarea.inp{padding:12px 14px;min-height:80px}
         <button id="ft-gas" role="tab" onclick="cambiarTipoComb('gas')" style="min-height:50px;font-size:17px">Gasolina</button>
       </div>
       <button class="btn btn-primary btn-big" id="btn-nueva-recarga" onclick="abrirRecarga()">+ Nueva recarga de GNV</button>
+      <div class="cols2"><div class="col">
       <div id="comb-resumen"></div>
       <div id="comb-gnv"></div>
       <div class="card pad" id="comb-grafico-card">
@@ -233,7 +278,7 @@ textarea.inp{padding:12px 14px;min-height:80px}
       </div>
       <div class="row" style="margin-top:4px"><div class="lbl">Recargas</div><span class="muted" id="comb-count"></span></div>
       <div id="comb-lista" style="display:flex;flex-direction:column;gap:12px"></div>
-
+      </div><div class="col">
       <div class="row" style="margin-top:10px"><div class="lbl">Mantenimiento del auto</div><button class="btn btn-sm" onclick="abrirMantConfig()">+ Agregar tipo</button></div>
       <div class="card pad">
         <div class="row" style="align-items:flex-start">
@@ -250,15 +295,21 @@ textarea.inp{padding:12px 14px;min-height:80px}
         <div class="muted" style="margin-top:8px;font-size:13px">Las recargas ya actualizan el km solas. Úsalo cuando revises el odómetro sin cargar combustible.</div>
       </div>
       <div id="mant-lista" style="display:flex;flex-direction:column;gap:12px"></div>
+      </div></div>
     </div>
   </section>
 </div>
 
 <nav class="tabs hidden" id="tabs" aria-label="Secciones">
   <div class="wrap">
-    <button id="tab-disponible" class="on" onclick="irA('disponible')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg>Disponible</button>
+    <div class="side-brand"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg></div><div><div style="font-size:17px;font-weight:800">Finanzas</div><div class="mono" id="side-version" style="font-size:11px;color:var(--text3)"></div></div></div>
+    <button id="tab-resumen" class="on" onclick="irA('resumen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg>Resumen</button>
+    <button id="tab-disponible" onclick="irA('disponible')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h2"/></svg>Disponible</button>
     <button id="tab-gastos" onclick="irA('gastos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg>Gastos</button>
     <button id="tab-combustible" onclick="irA('combustible')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16"/><path d="M3 21h13"/><path d="M7 8h5"/><path d="M15 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V8l-3-3"/></svg>Combustible</button>
+    <div class="side-sep"></div>
+    <button class="side-only" onclick="abrirConfig()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Configuración</button>
+    <button class="side-only" onclick="salir()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Cerrar sesión</button>
   </div>
 </nav>
 
@@ -749,9 +800,9 @@ textarea.inp{padding:12px 14px;min-height:80px}
 //  FINANZAS PAPÁ — app liviana basada en DB FINANCE (app de Miguel)
 //  Parte 1: base (login, cuentas, guardado) + Combustible completo.
 // ══════════════════════════════════════════════════════════════════
-const APP_VERSION = 'v1.17.0';
-const APP_VERSION_DATE = '12/10/26 - 12:17'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'v1.17.0: en Disponible, «Próximos 30 días» (pagos de tarjeta, pagos e ingresos fijos, cuotas y movimientos programados, ordenados por fecha); en Gastos, comparación con el mes anterior en el total y en cada categoría (▲/▼ %, contra los mismos días si es el mes en curso, sin juntar monedas); botón «Repetir con fecha de hoy» al abrir un gasto o ingreso.';
+const APP_VERSION = 'v1.18.0';
+const APP_VERSION_DATE = '12/10/26 - 20:57'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'v1.18.0: nueva pestaña «Resumen» (la app abre ahí): disponible, lo urgente, el mes (gastado, ingresos, cuánto puedes gastar, top categorías), lo que viene, el auto (última recarga, rendimiento, deuda GNV), próximo mantenimiento y préstamos; versión de escritorio: en computadora el menú pasa a una barra lateral y cada pestaña usa 2 columnas; las ventanas se abren centradas.';
 
 // ── Pega aquí la configuración web del Firebase de tu papá ──
 // (Firebase → Configuración del proyecto → Tus apps → Web). No es secreta:
@@ -937,7 +988,7 @@ function marcarSync(){ ultimaSync=ahoraLimaISO(); try{ localStorage.setItem('pap
 function actualizarSync(){
   const txt = DB.offline ? 'sin conexión' : (DB.pendientes ? 'guardando…' : 'sincronizado');
   const cls = DB.offline ? 'syncbox offline' : (DB.pendientes ? 'syncbox saving' : 'syncbox');
-  ['sync-1','sync-2','sync-3'].forEach(id=>{ const e=document.getElementById(id); if(!e) return; e.className=cls; e.title=DB.offline?'Sin conexión: lo que registres se guardará cuando vuelva la señal':''; e.querySelector('.t').textContent=ultimaSync?fechaHoraBonita(ultimaSync):'—'; e.querySelector('.st span').textContent=txt; });
+  ['sync-0','sync-1','sync-2','sync-3'].forEach(id=>{ const e=document.getElementById(id); if(!e) return; e.className=cls; e.title=DB.offline?'Sin conexión: lo que registres se guardará cuando vuelva la señal':''; e.querySelector('.t').textContent=ultimaSync?fechaHoraBonita(ultimaSync):'—'; e.querySelector('.st span').textContent=txt; });
 }
 window.addEventListener('online', ()=>{ DB.offline=false; actualizarSync(); });
 window.addEventListener('offline', ()=>{ DB.offline=true; actualizarSync(); });
@@ -1045,6 +1096,7 @@ async function salir(){
 }
 function iniciar(){
   ['login-version','cfg-version'].forEach(id=>document.getElementById(id).textContent=`Versión ${APP_VERSION} · ${APP_VERSION_DATE}`);
+  document.getElementById('side-version').textContent=APP_VERSION;
   if(!FIREBASE_CONFIG.apiKey || /^PEGA/.test(FIREBASE_CONFIG.apiKey)){ mostrar('setup-screen'); return; }
   try{ DB.init(); }catch(e){ console.error(e); mostrar('setup-screen'); return; }
   firebase.auth().onAuthStateChanged(user=>{
@@ -1052,7 +1104,7 @@ function iniciar(){
       document.getElementById('cfg-usuario').textContent='Conectado como '+user.email;
       const recienEntro=!document.getElementById('login-screen').classList.contains('hidden');
       _usuarioActivo=true;
-      mostrar('app'); DB.escuchar(); irA(localStorage.getItem('papa_pagina')||'disponible'); actualizarSync();
+      mostrar('app'); DB.escuchar(); irA('resumen'); actualizarSync();
       // al abrir la app con la sesión guardada: pedir Face ID (si acaba de escribir su contraseña, no)
       if(faceIdActivo() && !recienEntro) mostrarFaceLock(); else reiniciarInactividad();
     } else { _usuarioActivo=false; _faceLocked=false; clearTimeout(_inactTimer); document.getElementById('face-lock').classList.remove('show'); DB.parar(); mostrar('login-screen'); }
@@ -1060,11 +1112,11 @@ function iniciar(){
 }
 
 // ══ NAVEGACIÓN ══
+const PAGINAS=['resumen','disponible','gastos','combustible'];
 function irA(p){
-  if(!['disponible','gastos','combustible'].includes(p)) p='disponible';
+  if(!PAGINAS.includes(p)) p='resumen';
   ui.pagina=p;
-  try{ localStorage.setItem('papa_pagina',p); }catch(e){}
-  ['disponible','gastos','combustible'].forEach(x=>{
+  PAGINAS.forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('hidden', x!==p);
     document.getElementById('tab-'+x).classList.toggle('on', x===p);
   });
@@ -1076,8 +1128,10 @@ function programarRender(){ if(_renderPend) return; _renderPend=true; requestAni
 function render(){
   const p=partesLima(); const hoy=hoyLima();
   const dw=new Date(diaUTC(hoy)).getUTCDay();
-  document.getElementById('hoy-label').textContent=`${DIAS_L[dw][0].toUpperCase()+DIAS_L[dw].slice(1)} ${parseInt(p.day)} de ${MESES_L[parseInt(p.month)-1]}`;
-  if(ui.pagina==='disponible') renderDisponible();
+  const fh=`${DIAS_L[dw][0].toUpperCase()+DIAS_L[dw].slice(1)} ${parseInt(p.day)} de ${MESES_L[parseInt(p.month)-1]}`;
+  document.getElementById('hoy-label').textContent=fh; document.getElementById('hoy-label-0').textContent=fh;
+  if(ui.pagina==='resumen') renderResumen();
+  else if(ui.pagina==='disponible') renderDisponible();
   else if(ui.pagina==='gastos') renderGastos();
   else renderCombustible();
   if(document.getElementById('sh-config').classList.contains('open')) renderConfig();
@@ -1254,6 +1308,131 @@ function tarjetaProximas(){
   return h+'</div>';
 }
 
+// ══ RESUMEN (pestaña de inicio): solo lectura; cada bloque lleva a su pestaña ══
+function irGastosMesActual(){ ui.gastosMes=hoyLima().slice(0,7); GS.rango='mes'; irA('gastos'); }
+function irCombustible(t){ irA('combustible'); if(t&&t!==ui.tipoComb) cambiarTipoComb(t); }
+function renderResumen(){
+  const el=document.getElementById('res-body');
+  if(!DB.cargadas.has('cuentas')){ el.innerHTML='<div class="empty">Cargando…</div>'; return; }
+  const cs=cuentasOrdenadas(), hoy=hoyLima(), mk=hoy.slice(0,7), d=parseInt(hoy.slice(8,10),10);
+  const mesN=MESES_L[parseInt(mk.slice(5,7),10)-1], Mes=mesN[0].toUpperCase()+mesN.slice(1);
+  const verBtn=(txt,fn)=>`<button class="btn-link" style="min-height:36px;font-size:14px;font-weight:700;padding:0" onclick="${fn}">${txt} ›</button>`;
+  const caja=(k,v,sub,bg,colK)=>`<div style="background:${bg||'var(--bg3)'};border-radius:12px;padding:12px;min-width:0"><div class="k"${colK?` style="color:${colK}"`:''}>${k}</div>${v}${sub?`<div style="font-size:12px;margin-top:2px">${sub}</div>`:''}</div>`;
+  let top='', c1='', c2='';
+  // 1) dinero disponible
+  if(!cs.length){
+    top=`<div class="card pad"><div style="font-size:18px;font-weight:700">Primero agrega tus cuentas</div><p class="muted" style="margin-top:6px">Con tus cuentas, aquí verás de un vistazo cuánto tienes, cuánto gastaste y lo que viene.</p><button class="btn btn-primary btn-big" style="margin-top:14px" onclick="irA('disponible');abrirCuenta()">+ Agregar cuenta</button></div>`;
+  } else {
+    const dia=cs.filter(c=>c.tipo==='disponible'), aho=cs.filter(c=>c.tipo==='ahorro'), tjs=cs.filter(esTarjeta);
+    const tot={PEN:0,USD:0}, aTot={PEN:0,USD:0}, vm={PEN:0,USD:0};
+    dia.forEach(c=>tot[c.moneda==='USD'?'USD':'PEN']+=saldoCuenta(c));
+    aho.forEach(c=>aTot[c.moneda==='USD'?'USD':'PEN']+=saldoCuenta(c));
+    tjs.forEach(c=>vm[c.moneda==='USD'?'USD':'PEN']+=venceEsteMes(c).monto);
+    const monedas=['PEN','USD'].filter(k=>cs.some(c=>c.moneda===k));
+    const linea=(t,o,ms)=>`<div class="row" style="font-size:14px;margin-top:4px;align-items:flex-start"><span style="opacity:.92">${t}</span><span class="mono" style="font-size:16px;text-align:right;white-space:nowrap">${(ms||monedas).map(k=>dinero(o[k],k)).join('<br>')}</span></div>`;
+    top=`<div class="card pad" style="background:var(--accent-dark);border:none;color:#fff">
+      <div style="font-size:14px;font-weight:600;opacity:.92">Tienes disponible</div>
+      ${monedas.map((k,i)=>`<div class="mono" style="font-size:${i?20:34}px;${i?'opacity:.92':'margin-top:4px;letter-spacing:-.5px'}">${dinero(tot[k],k)}</div>`).join('')}
+      ${tjs.length||aho.length?'<div style="height:1px;background:rgba(255,255,255,.22);margin:12px 0 6px"></div>':''}
+      ${tjs.length?linea('Si pagas las tarjetas de '+mesN,{PEN:tot.PEN-vm.PEN,USD:tot.USD-vm.USD}):''}
+      ${aho.length?linea('Ahorros (aparte)',aTot,monedas.filter(k=>aho.some(c=>c.moneda===k))):''}
+    </div>`;
+  }
+  // 2) lo urgente: vencido, hoy o mañana
+  const prox=proximasFechas(30), urg=prox.filter(x=>diasEntre(hoy,x.fecha)<=1), luego=prox.filter(x=>diasEntre(hoy,x.fecha)>1);
+  const montoIt=it=>it.sinMonto?'Por definir':it.montos.map(m=>(it.aprox?'≈ ':'')+(it.signo==='+'?'+ ':'')+dinero(m.v,m.k)).join('<br>');
+  if(urg.length){
+    top+=`<div class="card" style="padding:14px 16px;background:var(--amber-bg);border-color:#f1d9b0">
+      <div class="row"><span class="lbl" style="color:#7a4a08">Lo urgente</span>${verBtn('Ver todo',"irA('disponible')").replace('font-weight:700','font-weight:700;color:#7a4a08')}</div>
+      ${urg.slice(0,4).map(it=>{ const dd=diasEntre(hoy,it.fecha); const cu=dd<0?`${it.tipo==='ingreso'?'atrasado':'venció'} hace ${-dd} día${dd===-1?'':'s'}`:dd===0?'vence hoy':'vence mañana';
+        return `<div class="row" style="margin-top:8px;font-size:15px;align-items:flex-start"><span><b>${esc(it.titulo)}</b> ${it.tipo==='ingreso'?cu.replace('vence','llega'):cu}</span><span class="mono" style="color:${it.col};white-space:nowrap;text-align:right">${montoIt(it)}</span></div>`; }).join('')}
+    </div>`;
+  }
+  // 3) el mes
+  const gas=gastosMesDe(mk), G=sumaMon(gas), ingM=sumaMon(state.movimientos.filter(x=>x.type==='income'&&(x.date||'').slice(0,7)===mk));
+  const pm=mkMas(mk,-1), PM=mesInfo(pm), hastaP=pm+'-'+String(Math.min(d,PM.D)).padStart(2,'0');
+  const GP=sumaMon(state.movimientos.filter(x=>x.type==='expense'&&(x.date||'').slice(0,7)===pm&&x.date<=hastaP));
+  let cmp='';
+  if(GP.PEN>0.004){ const p=(G.PEN-GP.PEN)/GP.PEN*100, ref=`vs. 1–${Math.min(d,PM.D)} ${MESES[PM.m-1]}`;
+    cmp=Math.abs(p)<1?`<span style="color:var(--text3);font-weight:700">= igual ${ref}</span>`:p>0?`<span style="color:var(--red);font-weight:700">▲ ${Math.round(p)}% ${ref}</span>`:`<span style="color:var(--green);font-weight:700">▼ ${Math.round(-p)}% ${ref}</span>`; }
+  const porLlegar=fijosDelMes('ingreso',mk).filter(f=>estadoFijo(f,mk).estado==='pendiente').length;
+  const R=gsRecomendado(), est=estadoRecomendado(R);
+  const cats=agrupar(gas.filter(x=>x.currency!=='USD'),x=>x.cat||'Sin categoría').slice(0,3);
+  c1+=`<div class="card pad">
+    <div class="row"><span style="font-size:18px;font-weight:700">${Mes}</span>${verBtn('Ver gastos','irGastosMesActual()')}</div>
+    <div class="grid2" style="margin-top:10px">
+      ${caja('Gastado',`<div class="mono" style="font-size:18px;color:var(--red);margin-top:2px;white-space:nowrap">${dinero(G.PEN,'PEN')}</div>${G.USD>0.004?`<div class="mono" style="font-size:15px;color:var(--red)">${dinero(G.USD,'USD')}</div>`:''}`,cmp)}
+      ${caja('Ingresos',`<div class="mono" style="font-size:17px;color:var(--green);margin-top:2px;white-space:nowrap">+ ${dinero(ingM.PEN,'PEN')}</div>${ingM.USD>0.004?`<div class="mono" style="font-size:15px;color:var(--green)">+ ${dinero(ingM.USD,'USD')}</div>`:''}`,porLlegar?`<span style="color:var(--text3)">${porLlegar} por llegar</span>`:'')}
+      <div style="background:var(--accent-bg);border-radius:12px;padding:12px;grid-column:span 2">
+        <div class="row" style="align-items:flex-end"><div><div class="k" style="color:var(--accent-dark)">Puedes gastar</div><div class="mono" style="font-size:22px;color:var(--accent-dark);margin-top:2px">${dinero(R.recomendado,'PEN')}</div></div><div style="text-align:right"><div class="mono" style="font-size:16px;color:var(--accent-dark)">≈ ${dinero(R.porDia,'PEN')}</div><div style="font-size:12px;color:var(--text2)">por día · ${R.diasRest} día${R.diasRest===1?'':'s'}</div></div></div>
+        <div style="font-size:13px;font-weight:600;margin-top:6px;color:${est.col}">${est.txt}</div>
+      </div>
+    </div>
+    ${cats.length?`<div style="margin-top:12px"><div class="lbl" style="margin-bottom:4px">En qué más gastaste</div>${cats.map(f=>`<div class="row" style="font-size:14px;padding:6px 0 4px"><span>${esc(f.n)}</span><span class="mono">${dinero(f.v,f.k)}</span></div><div class="bar" style="height:6px"><div style="width:${Math.max(2,f.p).toFixed(0)}%;background:var(--accent)"></div></div>`).join('')}</div>`:''}
+  </div>`;
+  // 4) lo que viene
+  c1+=`<div class="card" style="padding:4px 16px 10px">
+    <div class="row" style="padding:12px 0 4px"><span style="font-size:18px;font-weight:700">Lo que viene</span>${prox.length?verBtn(`Ver ${prox.length} fecha${prox.length===1?'':'s'}`,"irA('disponible')"):''}</div>
+    ${luego.length?luego.slice(0,3).map(it=>{ const dd=diasEntre(hoy,it.fecha), [,mm,di]=it.fecha.split('-').map(Number);
+      return `<div class="list-row" style="align-items:center"><div style="width:44px;flex-shrink:0;text-align:center;border-radius:10px;background:var(--bg3);padding:4px 0"><div style="font-size:17px;font-weight:800;line-height:1.1">${di}</div><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3)">${MESES[mm-1]}</div></div>
+        <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600">${esc(it.titulo)}</div><div class="muted" style="font-size:13px">En ${dd} días · ${({tarjeta:'tarjeta',pago:'pago fijo',ingreso:'ingreso',cuota:'cuota',programado:'programado'})[it.tipo]||''}</div></div>
+        <span class="mono" style="font-size:15px;color:${it.col};text-align:right;white-space:nowrap">${montoIt(it)}</span></div>`; }).join(''):`<div class="muted" style="font-size:14px;padding:6px 0">${urg.length?'Fuera de lo urgente, nada más en los próximos 30 días.':'Nada por pagar ni por cobrar en los próximos 30 días.'}</div>`}
+  </div>`;
+  // 5) el auto
+  const recs=state.recargas.slice().sort((a,b)=>(b.fFinal||'').localeCompare(a.fFinal||''));
+  if(!recs.length){
+    c2+=`<div class="card pad"><div class="row"><span style="font-size:18px;font-weight:700">El auto</span>${verBtn('Ver combustible',"irCombustible()")}</div><div class="muted" style="font-size:14px;margin-top:6px">Aún no hay recargas. Regístralas en Combustible para ver aquí la última, el rendimiento y el próximo mantenimiento.</div></div>`;
+  } else {
+    const u=recs[0], t=u.tipo, U=UNID[t], filas=calcularFilas(t), fu=filas.find(r=>r.id===u.id)||{};
+    const dd=diasEntre(u.fFinal,hoy), hace=dd<=0?'Hoy':dd===1?'Ayer':`Hace ${dd} días`;
+    const otro=recs.find(r=>r.tipo!==t), dOtro=otro?diasEntre(otro.fFinal,hoy):null;
+    const delMes=state.recargas.filter(r=>r.tipo===t&&(r.fFinal||'').slice(0,7)===mk).reduce((a,r)=>a+(num(r.galones)*num(r.pxg)||0),0);
+    const act=getKmActual(), dg=deudaGnv();
+    c2+=`<div class="card pad">
+      <div class="row"><span style="font-size:18px;font-weight:700">El auto</span>${verBtn('Ver combustible',`irCombustible('${t}')`)}</div>
+      <div class="row" style="margin-top:10px;align-items:flex-start">
+        <div style="min-width:0"><div class="k">Última recarga · ${COMB_LABEL[t]}</div>
+          <div style="font-size:17px;font-weight:700;margin-top:2px">${hace} <span style="font-size:14px;font-weight:500;color:var(--text3)">(${fechaCorta(u.fFinal)})</span></div>
+          <div class="muted" style="font-size:13px">${fmtN(num(u.galones),2)} ${U.u} · ${fmtKm(num(u.kmFinal))} km</div></div>
+        <div style="text-align:right"><div class="mono" style="font-size:17px">${dinero(num(u.galones)*num(u.pxg),'PEN')}</div>${num(u.recaudo)>0?`<div class="muted" style="font-size:12px">+ recaudo ${dinero(num(u.recaudo),'PEN')}</div>`:''}</div>
+      </div>
+      <div class="grid3" style="margin-top:12px">
+        ${caja('Rinde',`<div class="mono" style="font-size:14px;color:var(--teal);white-space:nowrap">${fu.kxg?fmtN(fu.kxg,1)+' '+U.rend:'—'}</div>`)}
+        ${caja('Precio',`<div class="mono" style="font-size:14px;white-space:nowrap">${num(u.pxg)>0?dinero(num(u.pxg),'PEN'):'—'}</div>`)}
+        ${caja('En '+mesN,`<div class="mono" style="font-size:14px;color:var(--amber);white-space:nowrap">${dinero(delMes,'PEN')}</div>`)}
+      </div>
+      ${otro?`<div class="muted" style="font-size:13px;margin-top:10px">${COMB_LABEL[otro.tipo]}: última recarga ${dOtro<=0?'hoy':dOtro===1?'ayer':'hace '+dOtro+' días'} (${fechaCorta(otro.fFinal)}).</div>`:''}
+      ${act?`<div class="muted" style="font-size:13px;margin-top:4px">Km actual: ${fmtKm(act.km)} km</div>`:''}
+      ${dg?(()=>{ const tot=num(dg.monto)||0, falta=saldoDeuda(dg), pct=tot>0?Math.round((tot-falta)/tot*100):0;
+        return `<div class="row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"><div><div class="k">Deuda instalación GNV</div><div class="muted" style="font-size:13px">${falta<=0.004?'¡Pagada!':'Pagado '+pct+'%'}</div></div><span class="mono" style="font-size:16px;color:${falta>0.004?'var(--red)':'var(--green)'}">${dinero(falta,dg.moneda)}</span></div>`; })():''}
+    </div>`;
+  }
+  // 6) próximo mantenimiento (los 2 más cercanos)
+  const ms=state.mantenimientos.map(m=>({m,p:proyeccionMant(m)})).filter(x=>x.p).sort((a,b)=>a.p.falta-b.p.falta).slice(0,2);
+  c2+=`<div class="card pad"><div class="row"><span style="font-size:18px;font-weight:700">Próximo mantenimiento</span>${verBtn('Ver',"irCombustible()")}</div>
+    ${ms.length?ms.map(({m,p},i)=>{ const col=p.falta<=200?'var(--red)':p.falta<=500?'var(--amber)':'var(--accent)';
+      return `<div style="margin-top:${i?14:12}px;${i?'padding-top:12px;border-top:1px solid var(--border)':''}">
+        <div class="row"><span style="font-size:${i?15:16}px;font-weight:${i?600:700}">${esc(m.nombre)}</span><span style="font-size:13px;font-weight:700;color:${p.falta<=500?col:'var(--text3)'}">${p.falta<=0?'¡Ya toca!':'Faltan '+fmtKm(p.falta)+' km'}</span></div>
+        <div class="bar" style="height:${i?8:10}px;margin-top:8px"><div style="width:${p.avance.toFixed(0)}%;background:${col}"></div></div>
+        <div class="muted" style="font-size:13px;margin-top:6px">A los ${fmtKm(p.kmProx)} km${p.fecha?' · fecha estimada ≈ '+fechaCorta(p.fecha):''}</div></div>`; }).join(''):`<div class="muted" style="font-size:14px;margin-top:6px">${state.mantenimientos.length?'Pon el km del último cambio en Combustible → Mantenimiento para calcularlo.':'Agrega lo que quieras controlar (cambio de aceite, filtros, revisión del GNV) en Combustible → Mantenimiento.'}</div>`}
+  </div>`;
+  // 7) préstamos
+  const deuAct=deudasActivas();
+  if(deuAct.length){
+    const t={me_deben:{PEN:0,USD:0},yo_debo:{PEN:0,USD:0}}, n={me_deben:[],yo_debo:[]};
+    deuAct.forEach(x=>{ const k=x.direccion==='yo_debo'?'yo_debo':'me_deben'; t[k][x.moneda==='USD'?'USD':'PEN']+=saldoDeuda(x); n[k].push(x.persona); });
+    const mx=o=>[['PEN',o.PEN],['USD',o.USD]].filter(x=>x[1]>0.004).map(x=>dinero(x[1],x[0])).join('<br>')||dinero(0,'PEN');
+    const quien=a=>a.length===0?'nadie':a.length===1?esc(a[0]):a.length+' personas';
+    c2+=`<div class="card pad"><div class="row"><span style="font-size:18px;font-weight:700">Préstamos</span>${verBtn('Ver',"irA('disponible')")}</div>
+      <div class="grid2" style="margin-top:10px">
+        ${caja('Me deben',`<div class="mono" style="font-size:17px;color:var(--green);white-space:nowrap">${mx(t.me_deben)}</div>`,`<span style="color:var(--text3)">${quien(n.me_deben)}</span>`)}
+        ${caja('Debo',`<div class="mono" style="font-size:17px;color:var(--red);white-space:nowrap">${mx(t.yo_debo)}</div>`,`<span style="color:var(--text3)">${quien(n.yo_debo)}</span>`)}
+      </div></div>`;
+  }
+  el.innerHTML=`<div class="top2">${top}</div><div class="cols2"><div class="col">${c1}</div><div class="col">${c2}</div></div>
+    ${cs.length?'<button class="btn btn-primary btn-big" onclick="abrirNuevo()">+ Nuevo movimiento</button>':''}`;
+}
+
 // ── DISPONIBLE ──
 function renderDisponible(){
   const el=document.getElementById('disp-body');
@@ -1269,7 +1448,7 @@ function renderDisponible(){
   aho.forEach(c=>aTot[c.moneda==='USD'?'USD':'PEN']+=saldoCuenta(c));
   tjs.forEach(c=>deu[c.moneda==='USD'?'USD':'PEN']+=deudaTarjeta(c));
   const monedas=['PEN','USD'].filter(k=>cs.some(c=>c.moneda===k));
-  let h=bloqueAvisos()+`<div class="card pad" style="background:var(--accent-dark);border:none;color:#fff">
+  let h=bloqueAvisos()+`<div class="top2"><div class="card pad" style="background:var(--accent-dark);border:none;color:#fff">
       <div style="font-size:14px;font-weight:600;opacity:.9">Tienes en tus cuentas del día a día</div>
       ${monedas.map((k,i)=>`<div class="mono" style="font-size:${i?20:34}px;${i?'opacity:.92':'margin-top:4px;letter-spacing:-.5px'}">${dinero(tot[k],k)}</div>`).join('')}
       <div style="font-size:13px;margin-top:8px;opacity:.85">${monedas.length>1?'Soles y dólares por separado · ':''}sin ahorros ni tarjetas</div>
@@ -1286,6 +1465,7 @@ function renderDisponible(){
         ${sinCorte.length?`<div class="muted" style="font-size:13px;margin-top:4px">${esc([...new Set(sinCorte)].join(', '))}: sin día de cierre, se cuenta toda su deuda.</div>`:''}
       </div></div>`;
   }
+  h+='</div><div class="cols2"><div class="col">';
   h+=tarjetaProximas();
   h+=`<div class="row"><div class="lbl">Cuentas</div><button class="btn btn-sm" onclick="abrirCuenta()">+ Agregar cuenta</button></div>
     <div class="card" style="padding:4px 16px">
@@ -1317,8 +1497,10 @@ function renderDisponible(){
     <button class="btn" style="width:100%;margin-top:12px;justify-content:space-between;font-weight:600;color:var(--text2)" onclick="ui.dispCalc=!ui.dispCalc;renderDisponible()" aria-expanded="${!!ui.dispCalc}">¿Cómo se calcula el recomendado? <span aria-hidden="true">${ui.dispCalc?'▴':'▾'}</span></button>
     ${ui.dispCalc?`<div style="margin-top:8px">${detalleRecomendado(R)}</div>`:''}
   </div>`;
+  h+='</div><div class="col">';
   if(tjs.length) h+=`<div class="lbl">Tarjetas de crédito</div>`+gruposDe(tjs).map(tarjetaCard).join('');
   h+=tarjetaDeudas();
+  h+='</div></div>';
   h+=`<button class="btn btn-primary btn-big" onclick="abrirNuevo()">+ Nuevo movimiento</button>`;
   el.innerHTML=h;
 }
@@ -1459,22 +1641,25 @@ function renderGastos(){
   if(!document.getElementById('gs-q')){
     el.innerHTML=`<div class="row"><button class="icon-btn" aria-label="Mes anterior" onclick="gastosMes(-1)">‹</button><div style="text-align:center"><div id="gs-mes" style="font-size:19px;font-weight:700"></div><button class="btn-link hidden" id="gs-hoy" style="min-height:28px;font-size:14px" onclick="ui.gastosMes=hoyLima().slice(0,7);GS.verTodos=false;renderGastos()">Volver a hoy</button></div><button class="icon-btn" aria-label="Mes siguiente" onclick="gastosMes(1)">›</button></div>
       <button class="btn btn-primary btn-big" onclick="abrirNuevo()">+ Nuevo movimiento</button>
-      <div class="grid2" id="gs-kpis"></div>
-      <div id="gs-ing"></div>
-      <div id="gs-reco"></div>
-      <div class="card pad" id="gs-como"></div>
-      <div class="card pad" style="display:flex;flex-direction:column;gap:10px">
+      <div class="grid2 kpis4" id="gs-kpis"></div>
+      <div class="cols2"><div class="col">
+      <div id="gs-ing" style="order:1"></div>
+      <div id="gs-reco" style="order:2"></div>
+      <div class="card pad" id="gs-como" style="order:3"></div>
+      <div class="card pad" id="gs-cats" style="order:6"></div>
+      <div class="card pad" id="gs-origen" style="order:7"></div>
+      <div class="card pad" id="gs-tend" style="order:8"></div>
+      </div><div class="col">
+      <div class="card pad" style="display:flex;flex-direction:column;gap:10px;order:4">
         <label class="field"><span>Buscar</span><input class="inp" id="gs-q" type="search" placeholder="Concepto o monto…" oninput="GS.q=this.value;GS.verTodos=false;gsActualizar()"></label>
         <button class="btn-link" style="align-self:flex-start;min-height:32px;font-size:14px" onclick="abrirBuscar(document.getElementById('gs-q').value)">Buscar en todos los meses ›</button>
         <div class="seg" id="gs-seg-filtro"></div>
         <div class="seg" id="gs-seg-rango"></div>
       </div>
-      <div class="card" style="padding:4px 16px 8px" id="gs-lista"></div>
-      <div class="card pad" id="gs-cats"></div>
-      <div class="card pad" id="gs-origen"></div>
-      <div class="card pad" id="gs-tend"></div>
-      <button class="btn" onclick="gsExportar()">Exportar a Excel</button>
-      <div class="muted" style="font-size:13px">Las transferencias y los pagos de tarjeta (⇄) no cuentan como gasto ni ingreso: solo mueven dinero entre tus cuentas.</div>`;
+      <div class="card" style="padding:4px 16px 8px;order:5" id="gs-lista"></div>
+      <button class="btn" style="order:9" onclick="gsExportar()">Exportar a Excel</button>
+      <div class="muted" style="font-size:13px;order:10">Las transferencias y los pagos de tarjeta (⇄) no cuentan como gasto ni ingreso: solo mueven dinero entre tus cuentas.</div>
+      </div></div>`;
   }
   const {y,m}=mesInfo(ui.gastosMes), act=ui.gastosMes===hoyLima().slice(0,7);
   document.getElementById('gs-mes').textContent=MESES_L[m-1][0].toUpperCase()+MESES_L[m-1].slice(1)+' '+y;
