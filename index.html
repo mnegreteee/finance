@@ -86,6 +86,9 @@ nav.tabs button.on{color:var(--accent)}
 .seg button{flex:1;min-height:44px;border:none;border-radius:9px;background:none;font-size:15px;font-weight:600;color:var(--text2)}
 .seg button.on{background:var(--bg2);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.14)}
 .periodos{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.meses-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:2px}
+.meses-grid button{min-height:42px;border-radius:10px;border:1px solid var(--border2);background:var(--bg2);font-size:15px;font-weight:600;color:var(--text2)}
+.meses-grid button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .periodos button{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--border2);background:var(--bg2);font-size:14px;font-weight:600;color:var(--text2)}
 .periodos button.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -321,6 +324,13 @@ textarea.inp{padding:12px 14px;min-height:80px}
     <div class="form">
       <div class="seg" id="rec-tipo-seg"><button type="button" data-t="gnv" onclick="recSetTipo('gnv')">GNV</button><button type="button" data-t="gas" onclick="recSetTipo('gas')">Gasolina</button></div>
       <div id="rec-sigue"></div>
+      <div id="rec-inicio-wrap" class="hidden form" style="margin-top:-6px">
+        <div class="grid2">
+          <label class="field"><span>F. inicial</span><input class="inp" id="rec-finicial" type="date" oninput="recRecalcular()"></label>
+          <label class="field"><span>KM inicial</span><input class="inp num" id="rec-kminicial" type="text" inputmode="numeric" oninput="recRecalcular()"></label>
+        </div>
+        <div class="muted" style="font-size:13px">Úsalo si este tramo no empieza donde terminó la recarga anterior (por ejemplo, manejaste con gasolina hasta el grifo). Solo cambia esta recarga.</div>
+      </div>
       <div class="grid2">
         <label class="field"><span>F. final</span><input class="inp" id="rec-fecha" type="date" oninput="recRecalcular()"></label>
         <label class="field"><span>KM final (odómetro)</span><input class="inp num" id="rec-km" type="text" inputmode="numeric" placeholder="Ej. 52,780" oninput="recRecalcular()"></label>
@@ -337,12 +347,6 @@ textarea.inp{padding:12px 14px;min-height:80px}
       </div>
       <div class="calc" id="rec-tramo"></div>
       <label class="row" style="justify-content:flex-start;gap:12px;cursor:pointer"><input type="checkbox" id="rec-sinrend" style="width:22px;height:22px" onchange="recRecalcular()"><span style="font-size:15px">No contar en el rendimiento <span class="muted" style="font-size:13px">(recarga parcial o tramo incompleto)</span></span></label>
-      <div id="rec-inicio-wrap" class="hidden form">
-        <div class="grid2">
-          <label class="field"><span>Fecha de la recarga anterior</span><input class="inp" id="rec-finicial" type="date" oninput="recRecalcular()"></label>
-          <label class="field"><span>Km de la recarga anterior</span><input class="inp num" id="rec-kminicial" type="text" inputmode="numeric" oninput="recRecalcular()"></label>
-        </div>
-      </div>
       <label class="field"><span>¿Con qué pagó?</span><select class="inp" id="rec-pago"></select><small id="rec-pago-nota">Se registra como gasto de esa cuenta (categoría Combustible).</small></label>
       <div id="rec-aviso"></div>
     </div>
@@ -570,13 +574,15 @@ textarea.inp{padding:12px 14px;min-height:80px}
       <label class="field"><span>Nombre</span><input class="inp" id="fijo-nombre" type="text"></label>
       <div class="field"><span>¿El monto es siempre igual?</span><div class="seg" id="fijo-modalidad"><button type="button" data-v="fijo" onclick="fijoSet('modalidad','fijo')">Monto fijo</button><button type="button" data-v="variable" onclick="fijoSet('modalidad','variable')">Monto variable</button></div>
         <div class="muted" id="fijo-modalidad-nota" style="font-size:13px;margin-top:6px"></div></div>
-      <div class="field"><span>¿Cada cuánto?</span><div class="seg" id="fijo-frecuencia"><button type="button" data-v="mensual" onclick="fijoSet('frecuencia','mensual')">Cada mes</button><button type="button" data-v="semestral" onclick="fijoSet('frecuencia','semestral')">Cada 6 meses</button><button type="button" data-v="anual" onclick="fijoSet('frecuencia','anual')">Cada año</button></div></div>
+      <div class="field"><span>¿Cada cuánto?</span><div class="seg" id="fijo-frecuencia"><button type="button" data-v="mensual" onclick="fijoSet('frecuencia','mensual')">Cada mes</button><button type="button" data-v="meses" onclick="fijoSet('frecuencia','meses')">Elige tus meses</button><button type="button" data-v="anual" onclick="fijoSet('frecuencia','anual')">Cada año</button></div></div>
       <label class="field hidden" id="fijo-mes-wrap"><span id="fijo-mes-lbl">¿En qué mes?</span><select class="inp" id="fijo-mes" onchange="fijoSet('frecuencia',fijoForm.frecuencia)"></select><small id="fijo-mes-nota"></small></label>
+      <div class="field hidden" id="fijo-meses-wrap"><span>¿En qué meses?</span><div class="meses-grid" id="fijo-meses" role="group" aria-label="Meses en que se repite"></div><small id="fijo-meses-nota"></small></div>
       <div class="field"><span>Moneda</span><div class="seg" id="fijo-moneda"><button type="button" data-v="PEN" onclick="fijoSet('moneda','PEN')">Soles S/</button><button type="button" data-v="USD" onclick="fijoSet('moneda','USD')">Dólares $</button></div></div>
       <div class="grid2">
         <label class="field"><span id="fijo-monto-lbl">Monto</span><input class="inp num" id="fijo-monto" type="text" inputmode="decimal" placeholder="0.00"></label>
         <label class="field"><span id="fijo-dia-lbl">Día de cada mes</span><input class="inp num" id="fijo-dia" type="text" inputmode="numeric" placeholder="Ej. 15"></label>
       </div>
+      <label class="row" style="justify-content:flex-start;gap:12px;cursor:pointer;margin-top:-4px"><input type="checkbox" id="fijo-ultimo" style="width:22px;height:22px" onchange="fijoSet('frecuencia',fijoForm.frecuencia)"><span style="font-size:15px"><b>Último día del mes</b> <span class="muted">(30, 31 o 28/29 según el mes)</span></span></label>
       <label class="field"><span id="fijo-cuenta-lbl">¿Con qué se paga normalmente?</span><select class="inp" id="fijo-cuenta"></select></label>
       <label class="field"><span>Categoría</span><input class="inp" id="fijo-cat" type="text" list="fijo-cats" autocomplete="off" placeholder="Ej. Servicios"><datalist id="fijo-cats"></datalist></label>
     </div>
@@ -728,7 +734,7 @@ textarea.inp{padding:12px 14px;min-height:80px}
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="cats-title">
     <div class="grab"></div>
     <div class="head"><h2 id="cats-title">Categorías</h2><button class="icon-btn" aria-label="Cerrar" onclick="cerrarHoja('sh-cats')">✕</button></div>
-    <div class="seg" id="cats-tipo"><button type="button" data-v="gasto" onclick="setCatTipo('gasto')">De gastos</button><button type="button" data-v="ingreso" onclick="setCatTipo('ingreso')">De ingresos</button></div>
+    <div class="muted" style="font-size:14px">Una sola lista para gastos e ingresos.</div>
     <form style="display:flex;gap:8px;margin-top:14px" onsubmit="event.preventDefault();agregarCat()">
       <input class="inp" id="cats-nueva" type="text" placeholder="Nueva categoría, ej. Medicinas" style="flex:1" aria-label="Nueva categoría">
       <button class="btn btn-primary" type="submit">Agregar</button>
@@ -804,9 +810,9 @@ textarea.inp{padding:12px 14px;min-height:80px}
 //  FINANZAS PAPÁ — app liviana basada en DB FINANCE (app de Miguel)
 //  Parte 1: base (login, cuentas, guardado) + Combustible completo.
 // ══════════════════════════════════════════════════════════════════
-const APP_VERSION = 'v1.18.2';
-const APP_VERSION_DATE = '12/10/26 - 21:49'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'v1.18.2: deuda GNV con % pagado y % que falta; «Nueva recarga» sigue la secuencia como el Excel (arriba F. inicial y KM inicial de la última recarga, solo completas F. final y KM final, y ves cuánto recorriste); en la lista de recargas, primera tarjeta «Tramo en curso» (desde la última recarga hasta hoy: días, km recorridos según la última lectura y km/día) con botón para registrar la recarga que lo cierra.';
+const APP_VERSION = 'v1.19.0';
+const APP_VERSION_DATE = '12/10/26 - 22:42'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'v1.19.0: pagos e ingresos fijos: «Elige tus meses» (marca los meses que quieras) reemplaza «Cada 6 meses», y casilla «Último día del mes» (30, 31 o 28/29 según el mes); categorías únicas para gastos e ingresos; Combustible: «Total gastado solo GNV», «Total pagado GNV + Recaudo» y % de variación del precio vs. la recarga anterior; en «Nueva recarga», botón «Cambiar» para poner otro F. inicial / KM inicial (p. ej. si manejaste con gasolina hasta el grifo).';
 
 // ── Pega aquí la configuración web del Firebase de tu papá ──
 // (Firebase → Configuración del proyecto → Tus apps → Web). No es secreta:
@@ -1281,7 +1287,7 @@ function proximasFechas(dias){
     const e=estadoFijo(f,m); if(e.estado!=='pendiente') return;
     const fecha=fechaFijo(f,m); if(fecha>hasta || (i>0 && fecha<hoy)) return;
     const est=montoEstimadoFijo(f), pago=f.tipo==='pago';
-    out.push({fecha, tipo:pago?'pago':'ingreso', titulo:f.nombre, sub:(pago?'Pago fijo':'Ingreso fijo')+(frecFijo(f)!=='mensual'?(frecFijo(f)==='anual'?' · cada año':' · cada 6 meses'):'')+(esVariable(f)?' · monto variable':''),
+    out.push({fecha, tipo:pago?'pago':'ingreso', titulo:f.nombre, sub:(pago?'Pago fijo':'Ingreso fijo')+(frecFijo(f)!=='mensual'?(frecFijo(f)==='anual'?' · cada año':' · meses elegidos'):'')+(esVariable(f)?' · monto variable':''),
       montos:est>0?[{v:est,k:f.moneda}]:[], aprox:esVariable(f), sinMonto:!(est>0), col:pago?'var(--red)':'var(--green)', signo:pago?'−':'+',
       fn:i===0?`abrirRegFijo('${esc(f.id)}')`:null, accion:i===0?(pago?'Ya pagué':'Ya llegó'):null});
   }));
@@ -2353,15 +2359,27 @@ function ultimoMontoFijo(f){
   return 0;
 }
 function montoEstimadoFijo(f){ if(!esVariable(f)) return num(f.monto)||0; return ultimoMontoFijo(f)||num(f.monto)||0; }
-// Frecuencia: 'mensual' (por defecto), 'semestral' (mes y 6 meses después) o 'anual' (un mes del año)
-function frecFijo(f){ return f.frecuencia==='anual'||f.frecuencia==='semestral'?f.frecuencia:'mensual'; }
-function mesesFijo(f){ const fr=frecFijo(f), m=parseInt(f.mes,10)||1; return fr==='anual'?[m]:fr==='semestral'?[m,((m+5)%12)+1].sort((a,b)=>a-b):null; }
+// Frecuencia: 'mensual' (por defecto), 'meses' (los meses que elijas, en f.meses) o 'anual' (un mes, f.mes).
+// Los antiguos 'semestral' (f.mes y 6 meses después) se leen como 'meses'. f.ultimoDia: el último día de cada mes.
+function frecFijo(f){ return f.frecuencia==='anual'?'anual':(f.frecuencia==='meses'||f.frecuencia==='semestral')?'meses':'mensual'; }
+function mesesFijo(f){
+  const fr=frecFijo(f), m=parseInt(f.mes,10)||1;
+  if(fr==='anual') return [m];
+  if(fr==='meses') return f.frecuencia==='semestral'?[m,((m+5)%12)+1].sort((a,b)=>a-b):[...new Set((f.meses||[]).map(x=>parseInt(x,10)).filter(x=>x>=1&&x<=12))].sort((a,b)=>a-b);
+  return null;
+}
+function listaMeses(ms){ const n=ms.map(m=>MESES_L[m-1]); return n.length<=1?n.join(''):n.slice(0,-1).join(', ')+' y '+n[n.length-1]; }
 function aplicaFijo(f,mk){ const ms=mesesFijo(f); return !ms||ms.includes(parseInt(mk.slice(5,7),10)); }
 function fijosDelMes(tipo,mk){ return fijosActivos(tipo).filter(f=>aplicaFijo(f,mk)); }
-function textoFrecFijo(f){ const ms=mesesFijo(f); if(!ms) return 'Cada mes, día '+f.dia; return (frecFijo(f)==='anual'?'Cada año':'Cada 6 meses')+' · día '+f.dia+' de '+ms.map(m=>MESES_L[m-1]).join(' y '); }
+function textoFrecFijo(f){
+  const ms=mesesFijo(f), dt=f.ultimoDia?'último día':'día '+f.dia;
+  if(!ms) return 'Cada mes, '+dt;
+  if(frecFijo(f)==='anual') return 'Cada año · '+dt+' de '+listaMeses(ms);
+  return 'En '+listaMeses(ms)+' · '+dt;
+}
 function proximaFechaFijo(f){ let mk=hoyLima().slice(0,7); for(let i=0;i<13;i++){ if(aplicaFijo(f,mk)){ const e=estadoFijo(f,mk); if(e.estado==='pendiente') return fechaFijo(f,mk); } mk=mkMas(mk,1); } return null; }
 function fijosActivos(tipo){ return state.frecuentes.filter(f=>!tipo||f.tipo===tipo).sort((a,b)=>(a.dia||0)-(b.dia||0)||(a.nombre||'').localeCompare(b.nombre||'')); }
-function diaFijo(f,mk){ const {D}=mesInfo(mk); return Math.min(parseInt(f.dia,10)||1, D); }
+function diaFijo(f,mk){ const {D}=mesInfo(mk); return f.ultimoDia?D:Math.min(parseInt(f.dia,10)||1, D); }
 function fechaFijo(f,mk){ return mk+'-'+String(diaFijo(f,mk)).padStart(2,'0'); }
 // Estado de un fijo en un mes: 'hecho' (con su movimiento), 'omitido', o pendiente con días que faltan
 function estadoFijo(f,mk){
@@ -2426,6 +2444,7 @@ function renderFijos(){
     <span class="mono">${esVariable(f)?(montoEstimadoFijo(f)>0?'≈ '+dinero(montoEstimadoFijo(f),f.moneda):'Variable'):dinero(num(f.monto),f.moneda)}</span></button>`).join(''):`<div class="empty">Sin ${fijosTipo==='pago'?'pagos':'ingresos'} fijos todavía.</div>`;
 }
 let fijoEdit=null, fijoForm={tipo:'pago',moneda:'PEN',modalidad:'fijo',frecuencia:'mensual'};
+function fijoToggleMes(m){ const a=new Set(fijoForm.meses||[]); a.has(m)?a.delete(m):a.add(m); fijoForm.meses=[...a]; fijoSet('frecuencia','meses'); }
 function fijoSet(k,v){
   fijoForm[k]=v; document.querySelectorAll('#fijo-'+k+' button').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
   const pago=fijoForm.tipo==='pago', vari=fijoForm.modalidad==='variable';
@@ -2434,10 +2453,18 @@ function fijoSet(k,v){
   const fr=fijoForm.frecuencia, selMes=document.getElementById('fijo-mes');
   document.querySelectorAll('#fijo-frecuencia button').forEach(b=>b.classList.toggle('on', b.dataset.v===fr));
   if(!selMes.options.length) selMes.innerHTML=MESES_L.map((m,i)=>`<option value="${i+1}">${m[0].toUpperCase()+m.slice(1)}</option>`).join('');
-  document.getElementById('fijo-mes-wrap').classList.toggle('hidden', fr==='mensual');
-  document.getElementById('fijo-mes-lbl').textContent=fr==='semestral'?'¿En qué mes toca la primera vez?':'¿En qué mes?';
-  const m1=parseInt(selMes.value,10)||1, m2=((m1+5)%12)+1;
-  document.getElementById('fijo-mes-nota').textContent=fr==='semestral'?`Toca en ${MESES_L[Math.min(m1,m2)-1]} y ${MESES_L[Math.max(m1,m2)-1]} de cada año.`:fr==='anual'?`Una vez al año, en ${MESES_L[m1-1]} (ej. SOAT, impuesto vehicular, predial).`:'';
+  document.getElementById('fijo-mes-wrap').classList.toggle('hidden', fr!=='anual');
+  const m1=parseInt(selMes.value,10)||1;
+  document.getElementById('fijo-mes-nota').textContent=fr==='anual'?`Una vez al año, en ${MESES_L[m1-1]} (ej. SOAT, impuesto vehicular, predial).`:'';
+  // elige tus meses
+  document.getElementById('fijo-meses-wrap').classList.toggle('hidden', fr!=='meses');
+  const sel12=fijoForm.meses||[];
+  document.getElementById('fijo-meses').innerHTML=MESES.map((m,i)=>`<button type="button" aria-pressed="${sel12.includes(i+1)}" onclick="fijoToggleMes(${i+1})">${m[0].toUpperCase()+m.slice(1)}</button>`).join('');
+  const ord=sel12.slice().sort((a,b)=>a-b);
+  document.getElementById('fijo-meses-nota').textContent=ord.length?(ord.length===12?'Todos los meses (es lo mismo que «Cada mes»).':`Se repite en ${listaMeses(ord)} de cada año.`):'Toca los meses en que se paga o llega (puedes elegir varios).';
+  // último día del mes
+  const ult=document.getElementById('fijo-ultimo').checked, inpDia=document.getElementById('fijo-dia');
+  inpDia.disabled=ult; if(ult) inpDia.value=''; inpDia.placeholder=ult?'Último día':'Ej. 15';
   document.getElementById('fijo-dia-lbl').textContent=fr==='mensual'?'Día de cada mes':'Día de ese mes';
   document.getElementById('fijo-title').textContent=(fijoEdit?'Editar ':'Nuevo ')+(pago?'pago':'ingreso')+(vari?' variable':' fijo');
   document.getElementById('fijo-nombre').placeholder=pago?(vari?'Ej. Luz del Sur, Sedapal':'Ej. Movistar, Netflix, Cuota del colegio'):(vari?'Ej. Comisiones, Trabajos extra':'Ej. Pensión, Alquiler del cuarto');
@@ -2461,7 +2488,9 @@ function abrirFijo(id, tipo){
   fijoForm.frecuencia=f?frecFijo(f):'mensual';
   const selMes=document.getElementById('fijo-mes'); if(!selMes.options.length) selMes.innerHTML=MESES_L.map((m,i)=>`<option value="${i+1}">${m[0].toUpperCase()+m.slice(1)}</option>`).join('');
   selMes.value=String(f&&f.mes?f.mes:parseInt(hoyLima().slice(5,7),10));
-  document.getElementById('fijo-dia').value=f?f.dia:'';
+  fijoForm.meses=f&&frecFijo(f)==='meses'?mesesFijo(f):[];
+  document.getElementById('fijo-ultimo').checked=!!(f&&f.ultimoDia);
+  document.getElementById('fijo-dia').value=f&&!f.ultimoDia?f.dia:'';
   document.getElementById('fijo-cat').value=f?(f.cat||''):'';
   document.getElementById('fijo-cuenta').innerHTML=f?`<option value="${esc(f.cuenta)}"></option>`:'';
   fijoForm.moneda=f?f.moneda:'PEN';
@@ -2479,18 +2508,24 @@ function guardarFijo(){
   const vari=fijoForm.modalidad==='variable';
   if(!vari&&!(monto>0)){ toast('Pon el monto. Si cambia cada mes, elige «Monto variable».',{error:true}); return; }
   if(vari&&monto<0){ toast('El monto no puede ser negativo.',{error:true}); return; }
-  if(!(dia>=1&&dia<=31)){ toast('El día va de 1 a 31.',{error:true}); return; }
+  const ultimo=document.getElementById('fijo-ultimo').checked;
+  if(!ultimo&&!(dia>=1&&dia<=31)){ toast('El día va de 1 a 31 (o marca «Último día del mes»).',{error:true}); return; }
   if(!getCuenta(cuenta)){ toast('Elige la cuenta.',{error:true}); return; }
   const f=fijoEdit?{...state.frecuentes.find(x=>x.id===fijoEdit)}:{id:nuevoId('fijo'), creado:Date.now(), registros:{}, omitidos:{}};
-  const fr=fijoForm.frecuencia, mesSel=parseInt(document.getElementById('fijo-mes').value,10);
-  if(fr!=='mensual' && !(mesSel>=1&&mesSel<=12)){ toast('Elige el mes.',{error:true}); return; }
-  if(fr==='mensual') delete f.mes; else f.mes=mesSel;
-  Object.assign(f,{frecuencia:fr, tipo:fijoForm.tipo, modalidad:vari?'variable':'fijo', nombre, monto:monto>0?+monto.toFixed(2):0, moneda:fijoForm.moneda, dia, cuenta, cat});
+  let fr=fijoForm.frecuencia; const mesSel=parseInt(document.getElementById('fijo-mes').value,10);
+  const meses=[...new Set(fijoForm.meses||[])].sort((a,b)=>a-b);
+  if(fr==='anual' && !(mesSel>=1&&mesSel<=12)){ toast('Elige el mes.',{error:true}); return; }
+  if(fr==='meses' && !meses.length){ toast('Toca al menos un mes.',{error:true}); return; }
+  if(fr==='meses' && meses.length===12) fr='mensual';
+  delete f.mes; delete f.meses;
+  if(fr==='anual') f.mes=mesSel; else if(fr==='meses') f.meses=meses;
+  if(ultimo) f.ultimoDia=true; else delete f.ultimoDia;
+  Object.assign(f,{frecuencia:fr, tipo:fijoForm.tipo, modalidad:vari?'variable':'fijo', nombre, monto:monto>0?+monto.toFixed(2):0, moneda:fijoForm.moneda, dia:ultimo?31:dia, cuenta, cat});
   const ops=[{c:'frecuentes',data:f}];
   if(!catExistente(tipoCat,cat)) ops.push({c:'ajustes',data:docCats(d=>d[tipoCat].push(cat))});
   DB.guardar(ops, `${fijoEdit?'Editó':'Agregó'} ${f.tipo==='pago'?'pago':'ingreso'} fijo ${nombre}`).catch(()=>{});
   cerrarHoja('sh-fijo'); fijosTipo=f.tipo;
-  toast(fijoEdit?'Actualizado':`${nombre} agregado: ${fr==='mensual'?'aparecerá cada mes el día '+dia:textoFrecFijo(f).toLowerCase()}`);
+  toast(fijoEdit?'Actualizado':`${nombre} agregado: ${textoFrecFijo(f).replace(/^./,c=>c.toLowerCase())}`);
 }
 async function eliminarFijo(){
   const f=state.frecuentes.find(x=>x.id===fijoEdit); if(!f) return;
@@ -2704,24 +2739,33 @@ function bloqueAvisos(){
 //  «Últimas acciones»). Combustible, Mantenimiento auto y Otros son fijas
 //  porque las usan Combustible, el Mantenimiento y los borrados.
 // ══════════════════════════════════════════════════════════════════
-const CATS_FIJAS={gasto:['Combustible','Mantenimiento auto','Instalación GNV','Otros'], ingreso:['Otros']};
-function getCats(tipo){
+// Una sola lista para gastos e ingresos (campo «todas»). Las listas antiguas «gasto» e «ingreso»
+// se juntan la primera vez (sin repetir) y se siguen guardando iguales para compatibilidad.
+const CATS_FIJAS=['Combustible','Mantenimiento auto','Instalación GNV','Otros'];
+function unirCats(...listas){ const out=[]; listas.flat().forEach(n=>{ n=String(n||'').trim(); if(n&&!out.some(x=>normNombre(x)===normNombre(n))) out.push(n); }); const i=out.findIndex(x=>normNombre(x)==='otros'); if(i>=0) out.push(out.splice(i,1)[0]); return out; }
+function getCats(){
   const a=state.ajustes.find(x=>x.id==='categorias');
-  return (a&&Array.isArray(a[tipo])?a[tipo]:(tipo==='ingreso'?CATS_INGRESO:CATS_GASTO)).slice();
+  if(a&&Array.isArray(a.todas)) return unirCats(a.todas);
+  return unirCats(a&&Array.isArray(a.gasto)?a.gasto:CATS_GASTO, a&&Array.isArray(a.ingreso)?a.ingreso:CATS_INGRESO);
 }
-function esCatFija(tipo,n){ return CATS_FIJAS[tipo].some(x=>normNombre(x)===normNombre(n)); }
-function tipoCatMov(m){ return m.type==='income'?'ingreso':'gasto'; }
-function movsConCat(tipo,n){ return state.movimientos.filter(m=>m.type!=='transfer'&&tipoCatMov(m)===tipo&&normNombre(m.cat)===normNombre(n)); }
-function docCats(cambio){ const d={id:'categorias', gasto:getCats('gasto'), ingreso:getCats('ingreso')}; if(cambio) cambio(d); return d; }
+function esCatFija(tipo,n){ return CATS_FIJAS.some(x=>normNombre(x)===normNombre(n)); }
+function movsConCat(tipo,n){ return state.movimientos.filter(m=>m.type!=='transfer'&&normNombre(m.cat)===normNombre(n)); }
+// cambio(d) puede tocar d.todas (gestor de categorías) o hacer d.gasto/d.ingreso.push(n) (formularios): todo termina en una sola lista
+function docCats(cambio){
+  const base=getCats(), d={id:'categorias', todas:base.slice(), gasto:base.slice(), ingreso:base.slice()};
+  if(cambio) cambio(d);
+  const nuevas=[...d.gasto,...d.ingreso].filter(n=>!base.some(x=>normNombre(x)===normNombre(n)));
+  d.todas=unirCats(d.todas, nuevas); d.gasto=d.todas.slice(); d.ingreso=d.todas.slice();
+  return d;
+}
 // Devuelve el nombre tal como está en la lista (misma mayúscula) o null si es nueva
 function catExistente(tipo,n){ return getCats(tipo).find(x=>normNombre(x)===normNombre(n))||null; }
 
 let catTipo='gasto', catEditNombre=null;
-function abrirCats(){ catTipo='gasto'; renderCats(); abrirHoja('sh-cats'); }
+function abrirCats(){ renderCats(); abrirHoja('sh-cats'); }
 function setCatTipo(t){ catTipo=t; renderCats(); }
 function renderCats(){
-  document.querySelectorAll('#cats-tipo button').forEach(b=>b.classList.toggle('on', b.dataset.v===catTipo));
-  const lista=getCats(catTipo);
+  const lista=getCats();
   document.getElementById('cats-lista').innerHTML=lista.map(n=>{
     const u=movsConCat(catTipo,n).length, fija=esCatFija(catTipo,n);
     return `<div class="list-row"><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:600">${esc(n)}</div>
@@ -2730,7 +2774,7 @@ function renderCats(){
     </div>`;
   }).join('');
   // categorías escritas a mano que no están en la lista
-  const sueltas=[...new Set(state.movimientos.filter(m=>m.type!=='transfer'&&tipoCatMov(m)===catTipo&&m.cat&&!catExistente(catTipo,m.cat)).map(m=>m.cat))];
+  const sueltas=[...new Set(state.movimientos.filter(m=>m.type!=='transfer'&&m.cat&&m.cat!=='Transferencia'&&!catExistente(catTipo,m.cat)).map(m=>m.cat))];
   document.getElementById('cats-sueltas').innerHTML=sueltas.length?`<div class="lbl" style="margin:18px 0 8px">Usadas pero fuera de la lista</div><div class="card" style="padding:4px 16px">${sueltas.map(n=>`<div class="list-row"><div style="flex:1"><div style="font-size:16px">${esc(n)}</div><div class="muted" style="font-size:13px">${movsConCat(catTipo,n).length} movimiento(s)</div></div><button class="btn btn-sm" onclick="agregarCat(${esc(JSON.stringify(n))})">Agregar a la lista</button></div>`).join('')}</div>`:'';
 }
 function agregarCat(nombre){
@@ -2738,7 +2782,7 @@ function agregarCat(nombre){
   const n=String(nombre!=null?nombre:inp.value).trim().replace(/\s+/g,' ');
   if(!n){ toast('Escribe el nombre de la categoría.',{error:true}); return; }
   if(catExistente(catTipo,n)){ toast(`«${catExistente(catTipo,n)}» ya está en la lista.`,{error:true}); return; }
-  DB.guardar([{c:'ajustes',data:docCats(d=>d[catTipo].push(n))}], `Agregó la categoría de ${catTipo} ${n}`).catch(()=>{});
+  DB.guardar([{c:'ajustes',data:docCats(d=>d.todas.push(n))}], `Agregó la categoría ${n}`).catch(()=>{});
   if(nombre==null) inp.value='';
   toast('Categoría agregada: '+n);
 }
@@ -2758,7 +2802,7 @@ async function guardarCatEdit(){
   const movs=movsConCat(catTipo,viejo);
   if(otra && !await confirmar('¿Juntar categorías?', `Ya existe «${esc(otra)}». Si sigues, «${esc(viejo)}» desaparece y sus ${movs.length} movimiento(s) pasan a «${esc(otra)}».`,'Juntar')) return;
   const destino=otra||nuevo;
-  const ops=[{c:'ajustes',data:docCats(d=>{ const i=d[catTipo].indexOf(viejo); if(otra) d[catTipo].splice(i,1); else d[catTipo][i]=nuevo; })}];
+  const ops=[{c:'ajustes',data:docCats(d=>{ const i=d.todas.indexOf(viejo); if(i<0) return; if(otra) d.todas.splice(i,1); else d.todas[i]=nuevo; })}];
   movs.forEach(m=>ops.push({c:'movimientos',data:{...m, cat:destino}}));
   DB.guardar(ops, otra?`Juntó la categoría ${viejo} con ${otra} (${movs.length} movimientos)`:`Renombró la categoría ${viejo} a ${nuevo} (${movs.length} movimientos)`).catch(()=>{});
   cerrarHoja('sh-catedit');
@@ -2767,7 +2811,7 @@ async function guardarCatEdit(){
 async function eliminarCat(n){
   const movs=movsConCat(catTipo,n);
   if(!await confirmar('¿Eliminar «'+esc(n)+'»?', movs.length?`Sus ${movs.length} movimiento(s) pasan a la categoría «Otros».`:'No hay movimientos con esta categoría.','Eliminar',true)) return;
-  const ops=[{c:'ajustes',data:docCats(d=>{ d[catTipo]=d[catTipo].filter(x=>x!==n); })}];
+  const ops=[{c:'ajustes',data:docCats(d=>{ d.todas=d.todas.filter(x=>x!==n); })}];
   movs.forEach(m=>ops.push({c:'movimientos',data:{...m, cat:'Otros'}}));
   DB.guardar(ops, `Eliminó la categoría ${n}${movs.length?' ('+movs.length+' movimientos pasan a Otros)':''}`).catch(()=>{});
   toast('Categoría eliminada', undoBtn());
@@ -3124,18 +3168,21 @@ function renderResumenComb(rows){
   const gasto=rows.reduce((s,r)=>s+(r.total||0),0);
   const kxg=galComp>0?kmTot/galComp:null;
   const ult=[...rows].reverse().find(r=>num(r.pxg)>0);
+  // variación del precio contra la recarga anterior (en % y en soles)
   let dif='';
-  if(ult && ult.pxgDif!==null && Math.abs(ult.pxgDif)>0.004){
-    const sube=ult.pxgDif>0;
-    dif=`<div style="font-size:14px;font-weight:600;color:${sube?'var(--red)':'var(--green)'}">${sube?'▲':'▼'} S/ ${fmtN(Math.abs(ult.pxgDif),2)} vs. recarga anterior</div>`;
+  if(ult && ult.pxgDif!==null && !isNaN(ult.pxgDif)){
+    const ant=num(ult.pxg)-ult.pxgDif, pct=ant>0?ult.pxgDif/ant*100:null;
+    if(Math.abs(ult.pxgDif)<=0.004) dif=`<div style="text-align:right"><div style="font-size:15px;font-weight:700;color:var(--text3)">= 0.0%</div><div class="muted" style="font-size:12px">igual que la recarga anterior</div></div>`;
+    else { const sube=ult.pxgDif>0, col=sube?'var(--red)':'var(--green)';
+      dif=`<div style="text-align:right"><div style="font-size:15px;font-weight:700;color:${col}">${sube?'▲ +':'▼ −'}${pct!==null?fmtN(Math.abs(pct),1)+'%':'S/ '+fmtN(Math.abs(ult.pxgDif),2)}</div><div class="muted" style="font-size:12px">${sube?'+':'−'} S/ ${fmtN(Math.abs(ult.pxgDif),2)} vs. recarga anterior (S/ ${fmtN(ant,2)})</div></div>`; }
   }
   el.innerHTML=`<div class="grid2">
     <div class="card kpi"><div class="lbl">Km recorridos</div><div class="v">${kmTot>0?fmtKm(kmTot)+' km':'—'}</div></div>
     <div class="card kpi"><div class="lbl">Rendimiento</div><div class="v" style="color:var(--teal)">${kxg!==null?fmtN(kxg,1)+' '+U.rend:'—'}</div></div>
-    <div class="card kpi"><div class="lbl">Total gastado</div><div class="v" style="color:var(--amber)">${gasto>0?dinero(gasto,'PEN'):'—'}</div></div>
+    <div class="card kpi"><div class="lbl">${ui.tipoComb==='gnv'?'Total gastado solo GNV':'Total gastado'}</div><div class="v" style="color:var(--amber)">${gasto>0?dinero(gasto,'PEN'):'—'}</div></div>
     <div class="card kpi"><div class="lbl">${U.cantK}</div><div class="v" style="color:var(--purple)">${galTot>0?fmtN(galTot,1)+' '+U.u:'—'}</div></div>
-    ${rows.some(r=>r.recaudo>0)?`<div class="card kpi" style="grid-column:span 2"><div class="row" style="flex-wrap:wrap;align-items:flex-start"><div><div class="lbl">Pagado en el grifo</div><div class="v">${dinero(gasto+rows.reduce((s,r)=>s+r.recaudo,0),'PEN')}</div></div><div style="text-align:right;font-size:13px;color:var(--text3)">GNV ${dinero(gasto,'PEN')}<br>+ recaudo ${dinero(rows.reduce((s,r)=>s+r.recaudo,0),'PEN')}</div></div></div>`:''}
-    <div class="card kpi" style="grid-column:span 2"><div class="row" style="flex-wrap:wrap"><div><div class="lbl">${U.precio} actual</div><div class="v" style="color:var(--green)">${ult?dinero(num(ult.pxg),'PEN'):'—'}</div></div>${dif}</div></div>
+    ${rows.some(r=>r.recaudo>0)?`<div class="card kpi" style="grid-column:span 2"><div class="lbl">Total pagado GNV + Recaudo</div><div class="v">${dinero(gasto+rows.reduce((s,r)=>s+r.recaudo,0),'PEN')}</div><div class="s">GNV ${dinero(gasto,'PEN')} + recaudo ${dinero(rows.reduce((s,r)=>s+r.recaudo,0),'PEN')}</div></div>`:''}
+    <div class="card kpi" style="grid-column:span 2"><div class="row" style="align-items:center"><div><div class="lbl">${U.precio} actual</div><div class="v" style="color:var(--green)">${ult?dinero(num(ult.pxg),'PEN'):'—'}</div></div>${dif}</div></div>
   </div>`;
 }
 const CHART_OPC=[
@@ -3298,7 +3345,7 @@ function recCambio(campo){
 function recAnterior(tipo, fecha, km, excluirId){
   const otras=ordenarRecargas(state.recargas.filter(x=>x.tipo===tipo&&x.id!==excluirId));
   let prev=null;
-  otras.forEach(o=>{ if((o.fFinal||'')<fecha || ((o.fFinal||'')===fecha && !isNaN(km) && num(o.kmFinal)<=km)) prev=o; });
+  otras.forEach(o=>{ if((o.fFinal||'')<fecha || ((o.fFinal||'')===fecha && (isNaN(km) || num(o.kmFinal)<=km))) prev=o; });
   return prev;
 }
 function recRecalcular(){
@@ -3326,11 +3373,11 @@ function recRecalcular(){
   if(prev||usaManual){
     const pr=prev||{};
     sg.innerHTML=`<div class="calc" style="padding:12px 14px">
-      <div class="lbl" style="margin-bottom:8px">Sigue desde ${usaManual?'el inicio que corregiste':'tu última recarga de '+COMB_LABEL[recTipo]}</div>
-      <div class="grid2">
+      <div class="row" style="margin-bottom:8px;align-items:flex-start"><div class="lbl">${usaManual?'Inicio cambiado a mano':'Sigue desde tu última recarga de '+COMB_LABEL[recTipo]}</div>${usaManual?`<button class="btn btn-sm" type="button" onclick="recQuitarInicio()">Usar la anterior</button>`:`<button class="btn btn-sm" type="button" onclick="recMostrarInicio()">Cambiar</button>`}</div>
+      ${usaManual?`<div class="muted" style="font-size:13px">La recarga anterior terminó ${prev?'el '+fechaCorta(prev.fFinal)+' con '+fmtKm(num(prev.kmFinal))+' km':'—'}. Este tramo empieza con lo que pongas abajo.</div>`:`<div class="grid2">
         <div><div class="k">F. inicial</div><div style="font-size:16px;font-weight:700">${iniF?fechaCorta(iniF):'—'}</div></div>
         <div><div class="k">KM inicial</div><div class="mono" style="font-size:16px">${!isNaN(iniK)?fmtKm(iniK)+' km':'—'}</div></div>
-      </div>
+      </div>`}
       ${prev&&!usaManual&&num(pr.galones)>0?`<div class="muted" style="font-size:13px;margin-top:6px">Esa vez: ${fmtN(num(pr.galones),2)} ${UNID[recTipo].u} a ${dinero(num(pr.pxg),'PEN')}${num(pr.recaudo)>0?' · recaudo '+dinero(num(pr.recaudo),'PEN'):''}</div>`:''}
     </div>`;
     kmIn.placeholder=!isNaN(iniK)?'Más de '+fmtKm(iniK):'Ej. 52,780';
@@ -3343,12 +3390,18 @@ function recRecalcular(){
   if(fecha && fecha>hoyLima()) av+=`<div class="alert warn" style="margin-top:8px">La fecha es futura.</div>`;
   document.getElementById('rec-aviso').innerHTML=av;
 }
+function recQuitarInicio(){
+  document.getElementById('rec-inicio-wrap').classList.add('hidden');
+  document.getElementById('rec-finicial').value=''; document.getElementById('rec-kminicial').value='';
+  recRecalcular();
+}
 function recMostrarInicio(){
   const wrap=document.getElementById('rec-inicio-wrap'); wrap.classList.remove('hidden');
   const prev=recAnterior(recTipo, document.getElementById('rec-fecha').value, num(document.getElementById('rec-km').value), recEdit);
   if(!document.getElementById('rec-finicial').value && prev) document.getElementById('rec-finicial').value=prev.fFinal;
   if(!document.getElementById('rec-kminicial').value && prev && !isNaN(num(prev.kmFinal))) document.getElementById('rec-kminicial').value=fmtKm(num(prev.kmFinal));
   recRecalcular();
+  setTimeout(()=>{ const i=document.getElementById('rec-kminicial'); i.focus(); i.select(); },50);
 }
 async function guardarRecarga(){
   const fecha=document.getElementById('rec-fecha').value;
