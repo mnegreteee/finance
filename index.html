@@ -320,8 +320,12 @@ textarea.inp{padding:12px 14px;min-height:80px}
     <div class="head"><h2 id="rec-title">Nueva recarga</h2><button class="icon-btn" aria-label="Cerrar" onclick="cerrarHoja('sh-recarga')">✕</button></div>
     <div class="form">
       <div class="seg" id="rec-tipo-seg"><button type="button" data-t="gnv" onclick="recSetTipo('gnv')">GNV</button><button type="button" data-t="gas" onclick="recSetTipo('gas')">Gasolina</button></div>
-      <label class="field"><span>Fecha de la recarga</span><input class="inp" id="rec-fecha" type="date" oninput="recRecalcular()"></label>
-      <label class="field"><span>Km del odómetro al cargar</span><input class="inp num" id="rec-km" type="text" inputmode="numeric" placeholder="Ej. 52,780" oninput="recRecalcular()"></label>
+      <div id="rec-sigue"></div>
+      <div class="grid2">
+        <label class="field"><span>F. final</span><input class="inp" id="rec-fecha" type="date" oninput="recRecalcular()"></label>
+        <label class="field"><span>KM final (odómetro)</span><input class="inp num" id="rec-km" type="text" inputmode="numeric" placeholder="Ej. 52,780" oninput="recRecalcular()"></label>
+      </div>
+      <div id="rec-recorrido" class="muted hidden" style="font-size:14px;margin-top:-6px"></div>
       <div class="grid2">
         <label class="field"><span id="rec-gal-lbl">Metros cúbicos (m³)</span><input class="inp num" id="rec-gal" type="text" inputmode="decimal" placeholder="0.00" oninput="recCambio('gal')"></label>
         <label class="field"><span id="rec-pxg-lbl">Precio por m³</span><input class="inp num" id="rec-pxg" type="text" inputmode="decimal" placeholder="S/ 0.00" oninput="recCambio('pxg')"></label>
@@ -800,9 +804,9 @@ textarea.inp{padding:12px 14px;min-height:80px}
 //  FINANZAS PAPÁ — app liviana basada en DB FINANCE (app de Miguel)
 //  Parte 1: base (login, cuentas, guardado) + Combustible completo.
 // ══════════════════════════════════════════════════════════════════
-const APP_VERSION = 'v1.18.0';
-const APP_VERSION_DATE = '12/10/26 - 20:57'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'v1.18.0: nueva pestaña «Resumen» (la app abre ahí): disponible, lo urgente, el mes (gastado, ingresos, cuánto puedes gastar, top categorías), lo que viene, el auto (última recarga, rendimiento, deuda GNV), próximo mantenimiento y préstamos; versión de escritorio: en computadora el menú pasa a una barra lateral y cada pestaña usa 2 columnas; las ventanas se abren centradas.';
+const APP_VERSION = 'v1.18.2';
+const APP_VERSION_DATE = '12/10/26 - 21:49'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'v1.18.2: deuda GNV con % pagado y % que falta; «Nueva recarga» sigue la secuencia como el Excel (arriba F. inicial y KM inicial de la última recarga, solo completas F. final y KM final, y ves cuánto recorriste); en la lista de recargas, primera tarjeta «Tramo en curso» (desde la última recarga hasta hoy: días, km recorridos según la última lectura y km/día) con botón para registrar la recarga que lo cierra.';
 
 // ── Pega aquí la configuración web del Firebase de tu papá ──
 // (Firebase → Configuración del proyecto → Tus apps → Web). No es secreta:
@@ -1404,7 +1408,7 @@ function renderResumen(){
       ${otro?`<div class="muted" style="font-size:13px;margin-top:10px">${COMB_LABEL[otro.tipo]}: última recarga ${dOtro<=0?'hoy':dOtro===1?'ayer':'hace '+dOtro+' días'} (${fechaCorta(otro.fFinal)}).</div>`:''}
       ${act?`<div class="muted" style="font-size:13px;margin-top:4px">Km actual: ${fmtKm(act.km)} km</div>`:''}
       ${dg?(()=>{ const tot=num(dg.monto)||0, falta=saldoDeuda(dg), pct=tot>0?Math.round((tot-falta)/tot*100):0;
-        return `<div class="row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"><div><div class="k">Deuda instalación GNV</div><div class="muted" style="font-size:13px">${falta<=0.004?'¡Pagada!':'Pagado '+pct+'%'}</div></div><span class="mono" style="font-size:16px;color:${falta>0.004?'var(--red)':'var(--green)'}">${dinero(falta,dg.moneda)}</span></div>`; })():''}
+        return `<div class="row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"><div><div class="k">Deuda instalación GNV</div><div class="muted" style="font-size:13px">${falta<=0.004?'¡Pagada!':'Pagado '+pct+'% · falta '+(100-pct)+'%'}</div></div><span class="mono" style="font-size:16px;color:${falta>0.004?'var(--red)':'var(--green)'}">${dinero(falta,dg.moneda)}</span></div>`; })():''}
     </div>`;
   }
   // 6) próximo mantenimiento (los 2 más cercanos)
@@ -3178,6 +3182,25 @@ function renderGraficoComb(rows){
               y:{grid:{color:'rgba(0,0,0,.07)'},ticks:{color:'#3a3b44',font:{size:12},maxTicksLimit:5,callback:v=>cfg.key==='pxg'||cfg.key==='total'?'S/ '+fmtN(v,cfg.key==='pxg'?2:0):fmtN(v,0)}}}}
   });
 }
+// ── Tramo en curso: empieza en la última recarga (su F. final y KM final son el inicio del siguiente)
+//    y se cierra cuando se registra la próxima recarga. Igual que la última fila abierta del Excel.
+function tramoEnCurso(rows){
+  const u=rows[rows.length-1]; if(!u||!esFecha(u.fFinal)) return '';
+  const U=UNID[ui.tipoComb], hoy=hoyLima(), dias=Math.max(0,diasEntre(u.fFinal,hoy)), kmI=num(u.kmFinal);
+  const act=getKmActual(), kmU=act&&act.fecha>=u.fFinal&&!isNaN(kmI)&&act.km>kmI?act.km-kmI:null;
+  const caja=(k,v,col)=>`<div><div class="k">${k}</div><div class="v15"${col?` style="color:${col}"`:''}>${v}</div></div>`;
+  return `<div class="card pad tramo-curso" style="border:2px dashed var(--accent);background:var(--accent-bg)">
+    <div class="row"><div style="font-size:17px;font-weight:700">${fechaBonita(u.fFinal)} → hoy</div><span class="chip" style="background:var(--accent);color:#fff">Tramo en curso</span></div>
+    <div class="mono" style="font-size:14px;color:var(--text2);margin-top:4px">${fmtKm(kmI)} → ${kmU!==null?fmtKm(act.km)+' km (última lectura)':'? km'}</div>
+    <div class="grid3" style="margin-top:12px">
+      ${caja('Llevas',dias+' día'+(dias===1?'':'s'))}
+      ${caja('Recorrido',kmU!==null?fmtKm(kmU)+' km':'—','var(--teal)')}
+      ${caja('Km/día',kmU!==null&&dias>0?fmtN(kmU/dias,1):'—')}
+    </div>
+    <div class="muted" style="font-size:13px;margin-top:10px">Empezó con tu recarga del ${fechaCorta(u.fFinal)}${num(u.galones)>0?' ('+fmtN(num(u.galones),2)+' '+U.u+')':''}. Se cierra cuando registres la próxima recarga: su F. inicial y KM inicial serán ${fechaCorta(u.fFinal)} y ${fmtKm(kmI)} km.</div>
+    <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="abrirRecarga()">+ Registrar la recarga que cierra este tramo</button>
+  </div>`;
+}
 function renderListaRecargas(rows){
   const U=UNID[ui.tipoComb];
   const el=document.getElementById('comb-lista');
@@ -3186,7 +3209,7 @@ function renderListaRecargas(rows){
   if(!rows.length){ el.innerHTML=`<div class="card empty">Sin recargas de ${COMB_LABEL[ui.tipoComb]} todavía.<br>Toca «+ Nueva recarga» después de cargar en el grifo.</div>`; return; }
   const inv=rows.slice().reverse();
   const mostrar=ui.verTodas?inv:inv.slice(0,5);
-  el.innerHTML=mostrar.map(r=>{
+  el.innerHTML=tramoEnCurso(rows)+mostrar.map(r=>{
     const g=r.gastoRegistrado;
     let pago;
     if(g&&g.tipo==='cuenta') pago=`<div style="font-size:14px">${esc(nombreCuenta(g.cuenta))}</div>`;
@@ -3298,6 +3321,23 @@ function recRecalcular(){
     if(!usaManual) h+=`<br><button class="btn-link" style="padding:0" onclick="recMostrarInicio()">Corregir el inicio del tramo</button>`;
   }
   document.getElementById('rec-tramo').innerHTML=h;
+  // ── «Sigue desde»: F. inicial y KM inicial = la recarga anterior (como en el Excel) ──
+  const sg=document.getElementById('rec-sigue'), kmIn=document.getElementById('rec-km'), rr=document.getElementById('rec-recorrido');
+  if(prev||usaManual){
+    const pr=prev||{};
+    sg.innerHTML=`<div class="calc" style="padding:12px 14px">
+      <div class="lbl" style="margin-bottom:8px">Sigue desde ${usaManual?'el inicio que corregiste':'tu última recarga de '+COMB_LABEL[recTipo]}</div>
+      <div class="grid2">
+        <div><div class="k">F. inicial</div><div style="font-size:16px;font-weight:700">${iniF?fechaCorta(iniF):'—'}</div></div>
+        <div><div class="k">KM inicial</div><div class="mono" style="font-size:16px">${!isNaN(iniK)?fmtKm(iniK)+' km':'—'}</div></div>
+      </div>
+      ${prev&&!usaManual&&num(pr.galones)>0?`<div class="muted" style="font-size:13px;margin-top:6px">Esa vez: ${fmtN(num(pr.galones),2)} ${UNID[recTipo].u} a ${dinero(num(pr.pxg),'PEN')}${num(pr.recaudo)>0?' · recaudo '+dinero(num(pr.recaudo),'PEN'):''}</div>`:''}
+    </div>`;
+    kmIn.placeholder=!isNaN(iniK)?'Más de '+fmtKm(iniK):'Ej. 52,780';
+    const kmU=(!isNaN(km)&&km>0&&!isNaN(iniK))?km-iniK:null, dd=(iniF&&fecha)?diasEntre(iniF,fecha):null;
+    rr.classList.toggle('hidden', kmU===null);
+    if(kmU!==null) rr.innerHTML=kmU>=0?`Recorriste <b style="color:var(--text)">${fmtKm(kmU)} km</b>${dd>0?' en '+dd+' día'+(dd===1?'':'s'):''} desde la anterior.`:`<span style="color:var(--red);font-weight:600">Es menor que el KM inicial (${fmtKm(iniK)}).</span>`;
+  } else { sg.innerHTML=''; kmIn.placeholder='Ej. 52,780'; rr.classList.add('hidden'); }
   let av='';
   if(!isNaN(km)&&!isNaN(iniK)&&km<iniK) av=`<div class="alert warn">Este km (${fmtKm(km)}) es menor que el de la recarga anterior (${fmtKm(iniK)}). ¿Está bien escrito?</div>`;
   if(fecha && fecha>hoyLima()) av+=`<div class="alert warn" style="margin-top:8px">La fecha es futura.</div>`;
@@ -3442,12 +3482,13 @@ function tarjetaGnv(rows){
   let h=`<div class="card pad"><div class="row"><span style="font-size:17px;font-weight:700">Deuda de la instalación GNV</span><button class="btn btn-sm" onclick="abrirGnvDeuda()">${d?'Editar':'Agregar'}</button></div>`;
   if(d){
     const total=num(d.monto)||0, falta=saldoDeuda(d), pagado=total-falta, pct=total>0?Math.min(100,pagado/total*100):0;
+    const fmtPct=v=>(v>=99.95&&v<100?'99.9':v>0&&v<0.05?'0.1':fmtN(v,1))+'%';
     h+=`<div class="grid3" style="margin-top:12px">
-        <div class="calc" style="padding:10px"><div class="k">Deuda total</div><div class="mono" style="font-size:16px">${dinero(total,d.moneda)}</div></div>
-        <div class="calc" style="padding:10px"><div class="k">Pagado</div><div class="mono" style="font-size:16px;color:var(--green)">${dinero(pagado,d.moneda)}</div></div>
-        <div class="calc" style="padding:10px"><div class="k">Falta</div><div class="mono" style="font-size:16px;color:${falta>0.004?'var(--red)':'var(--green)'}">${dinero(falta,d.moneda)}</div></div></div>
+        <div class="calc" style="padding:10px"><div class="k">Deuda total</div><div class="mono" style="font-size:14px;white-space:nowrap;letter-spacing:-.3px">${dinero(total,d.moneda)}</div></div>
+        <div class="calc" style="padding:10px"><div class="k">Pagado</div><div class="mono" style="font-size:14px;white-space:nowrap;letter-spacing:-.3px;color:var(--green)">${dinero(pagado,d.moneda)}</div><div class="gnv-pct" style="font-size:15px;font-weight:800;color:var(--green);margin-top:2px">${fmtPct(pct)}</div></div>
+        <div class="calc" style="padding:10px"><div class="k">Falta</div><div class="mono" style="font-size:14px;white-space:nowrap;letter-spacing:-.3px;color:${falta>0.004?'var(--red)':'var(--green)'}">${dinero(falta,d.moneda)}</div><div class="gnv-pct" style="font-size:15px;font-weight:800;color:${falta>0.004?'var(--red)':'var(--green)'};margin-top:2px">${fmtPct(total>0?Math.max(0,100-pct):0)}</div></div></div>
       <div class="bar" style="margin-top:12px"><div style="width:${pct.toFixed(0)}%;background:var(--green)"></div></div>
-      <div class="muted" style="font-size:13px;margin-top:6px">${falta<=0.004?'¡Deuda pagada!':`${pct.toFixed(0)}% pagado${prom>0?` · a ≈ ${dinero(prom,'PEN')} por recarga faltan ≈ ${Math.ceil(falta/prom)} recargas`:''}`}</div>
+      <div class="muted" style="font-size:13px;margin-top:6px">${falta<=0.004?'¡Deuda pagada!':`${fmtPct(pct)} pagado · ${fmtPct(Math.max(0,100-pct))} por pagar${prom>0?` · a ≈ ${dinero(prom,'PEN')} por recarga faltan ≈ ${Math.ceil(falta/prom)} recargas`:''}`}</div>
       <div class="muted" style="font-size:13px;margin-top:4px">Cada recaudo que anotes en una recarga se descuenta solo.</div>`;
     const pend=falta>0.004?recaudosSinDescontar(d):[];
     if(pend.length){ const sp=pend.reduce((s,r)=>s+num(r.recaudo),0);
