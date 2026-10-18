@@ -3062,7 +3062,10 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
   <div id="fuel-section-glp">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3)">🔵 Gas Natural Vehicular (GNV)</div>
-      <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="addFuelRow('glp')">+ Nueva recarga GNV</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="config-action-btn neutral" style="font-size:11px;padding:5px 10px" onclick="abrirImportFuel('glp')">📂 Cargar histórico</button>
+        <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="addFuelRow('glp')">+ Nueva recarga GNV</button>
+      </div>
     </div>
     <!-- Deuda de la instalación del GNV — se paga con el recaudo de cada recarga -->
     <div class="card" id="gnv-deuda-card" style="padding:14px 16px;margin-bottom:16px"></div>
@@ -3102,7 +3105,10 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
   <div id="fuel-section-gas" style="display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3)">🟡 Gasolina</div>
-      <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="addFuelRow('gas')">+ Nueva recarga Gasolina</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="config-action-btn neutral" style="font-size:11px;padding:5px 10px" onclick="abrirImportFuel('gas')">📂 Cargar histórico</button>
+        <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="addFuelRow('gas')">+ Nueva recarga Gasolina</button>
+      </div>
     </div>
     <div class="fuel-summary" id="fs-gas">
       <div class="fuel-sum-card" style="border-top-color:var(--accent)"><div class="fuel-sum-label">KM Totales</div><div class="fuel-sum-val" id="fs-gas-km" style="color:var(--accent)">—</div></div>
@@ -3642,6 +3648,23 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
   </div>
 </div>
 
+<!-- MODAL: CARGAR HISTÓRICO DE COMBUSTIBLE (Excel) -->
+<div class="modal-overlay" id="impf-overlay" onclick="if(event.target===this)cerrarImportFuel()">
+  <div class="modal" style="width:480px;max-height:88vh;overflow-y:auto">
+    <div class="modal-title"><span id="impf-title">📂 Cargar histórico</span><button class="modal-close" onclick="cerrarImportFuel()">✕</button></div>
+    <div id="impf-ayuda" style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <input type="file" id="impf-archivo" accept=".xlsx,.xls,.csv" onchange="leerImportFuel(event)" style="font-size:12px;flex:1;min-width:200px">
+      <button class="config-action-btn neutral" style="font-size:10px;padding:5px 9px" onclick="descargarPlantillaFuel()">📥 Plantilla</button>
+    </div>
+    <div id="impf-preview"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn" onclick="cerrarImportFuel()">Cancelar</button>
+      <button class="btn btn-primary" id="impf-ok" onclick="confirmarImportFuel()" disabled>Cargar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: DEUDA DE LA INSTALACIÓN DEL GNV -->
 <div class="modal-overlay" id="gnvd-overlay" onclick="if(event.target===this)cerrarGnvDeuda()">
   <div class="modal" style="width:420px">
@@ -3822,9 +3845,9 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
 //  VERSIÓN DE LA APP — actualizar en cada cambio solicitado
 //  Formato: vMAYOR.MENOR.PARCHE — fecha del último cambio
 // ══════════════════════════════════════════════════════
-const APP_VERSION = 'v2.0.2';
-const APP_VERSION_DATE = '17/10/26 - 21:23'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'Se quitó la opción para traer los datos de la app anterior.';
+const APP_VERSION = 'v2.1.0';
+const APP_VERSION_DATE = '17/10/26 - 21:29'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'Nuevo: cargar el histórico de GNV y Gasolina desde Excel (botón «Cargar histórico» en Combustible).';
 // Versión simplificada para el papá: oculta y apaga los módulos que no usa
 // (bot, aprobaciones, IA, inversiones, AFP, sueldos, compras, TC, etc.).
 const APP_LITE = true;
@@ -19827,6 +19850,162 @@ function desvincularGnvDeuda(){
   state.gnvDeudaId=null; saveState(); cerrarGnvDeuda(); renderFuelSection('glp');
 }
 
+// ══════════════════════════════════════════════════════
+//  CARGAR HISTÓRICO DE COMBUSTIBLE (Excel)
+//  Lee las columnas por su título (sin importar tildes/mayúsculas):
+//  F. INICIAL, F. FINAL, KM INICIAL, KM FINAL, M3/GALONES, PXM3/PXG,
+//  PRECIO / PRECIO SOLO GNV (total), RECAUDO, GNV + RECAUDO, RENDIMIENTO.
+//  · Con el total se calcula el precio exacto por m³/galón.
+//  · Filas solo con kilometraje (sin carga) → lectura del odómetro.
+//  · Filas repetidas (misma fecha final y km final) no se vuelven a cargar.
+//  · Las recargas cargadas quedan con su gasto "ya registrado" para no
+//    duplicar gastos antiguos en tus cuentas.
+// ══════════════════════════════════════════════════════
+const IMPF_COLS={
+  fecha:['f final','ffinal','fecha final','fecha','fecha recarga'],
+  km:['km final','kmfinal','km','kilometraje','odometro'],
+  fInicial:['f inicial','finicial','fecha inicial'],
+  kmInicial:['km inicial','kminicial'],
+  cantidad:['m3','galones','cantidad','gal','metros cubicos'],
+  unit:['pxg','pxm3','px m3','precio por galon','precio por m3','precio unitario','precio x galon','precio x m3'],
+  total:['precio solo gnv','total gnv','precio','total','total gas','monto','importe','precio total'],
+  recaudo:['recaudo','recaudo instalacion'],
+  totalRec:['gnv recaudo','gnv mas recaudo','total pagado','total con recaudo'],
+  rendimiento:['rendimiento','contar rendimiento']
+};
+let impfTipo='glp', impfFilas=[], impfKm=[];
+function _impfNorm(t){ return String(t==null?'':t).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\+/g,' mas ').replace(/[^a-z0-9]+/g,' ').trim(); }
+function _impfNum(v){ if(typeof v==='number') return v; const s=String(v==null?'':v).trim().replace(/s\/|\$/gi,'').replace(/,/g,''); if(s==='') return NaN; const n=parseFloat(s); return isNaN(n)?NaN:n; }
+function _impfFecha(v){
+  if(v===null||v===undefined||v==='') return '';
+  if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+  if(typeof v==='number' && v>20000 && v<80000){ const d=new Date(Math.round((v-25569)*86400000)); return d.toISOString().slice(0,10); }
+  const s=String(v).trim();
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if(m) return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/); if(m){ const y=m[3].length===2?'20'+m[3]:m[3]; return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'); }
+  return '';
+}
+function abrirImportFuel(tipo){
+  impfTipo=tipo; impfFilas=[]; impfKm=[];
+  const gnv=tipo==='glp';
+  document.getElementById('impf-title').textContent='📂 Cargar histórico de '+(gnv?'GNV':'Gasolina');
+  document.getElementById('impf-ayuda').innerHTML=`Elige tu Excel. La primera fila debe tener los títulos: <b>F. INICIAL, F. FINAL, KM INICIAL, KM FINAL, ${gnv?'M3, PXM3, PRECIO SOLO GNV, RECAUDO':'GALONES, PXG, PRECIO'}, RENDIMIENTO</b> (SI/NO). Las recargas que ya estén en la app no se repiten, y su gasto queda como ya registrado (no se descuenta de tus cuentas).`;
+  document.getElementById('impf-archivo').value='';
+  document.getElementById('impf-preview').innerHTML='';
+  document.getElementById('impf-ok').disabled=true;
+  document.getElementById('impf-overlay').classList.add('open');
+}
+function cerrarImportFuel(){ document.getElementById('impf-overlay').classList.remove('open'); }
+function descargarPlantillaFuel(){
+  const gnv=impfTipo==='glp';
+  const cab=gnv?['F. INICIAL','F. FINAL','KM INICIAL','KM FINAL','M3','PXM3','PRECIO SOLO GNV','RECAUDO','GNV + RECAUDO','RENDIMIENTO']
+               :['F. INICIAL','F. FINAL','KM INICIAL','KM FINAL','GALONES','PXG','PRECIO','RENDIMIENTO'];
+  const ej=gnv?['01/09/2026','08/09/2026',50000,50320,10,1.6,16,8,24,'SI']:['01/09/2026','15/09/2026',50000,50400,10,15,150,'SI'];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([cab,ej]), gnv?'GNV':'Gasolina');
+  XLSX.writeFile(wb, (gnv?'plantilla_gnv':'plantilla_gasolina')+'.xlsx');
+}
+function leerImportFuel(ev){
+  const f=ev.target.files&&ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const m=XLSX.utils.sheet_to_json(ws,{header:1, raw:true, defval:''});
+      analizarImportFuel(m);
+    }catch(err){ console.error(err); document.getElementById('impf-preview').innerHTML='<div style="color:var(--red);font-size:12px">No pude leer ese archivo. Revisa que sea un Excel (.xlsx).</div>'; }
+  };
+  rd.readAsArrayBuffer(f);
+}
+function analizarImportFuel(m){
+  const prev=document.getElementById('impf-preview'), ok=document.getElementById('impf-ok');
+  impfFilas=[]; impfKm=[]; ok.disabled=true;
+  const vacio=v=>v===null||v===undefined||String(v).trim()==='';
+  // fila de títulos: la primera que tenga fecha final y km final
+  let hi=-1, idx={};
+  for(let i=0;i<Math.min(m.length,10)&&hi<0;i++){
+    const t=(m[i]||[]).map(_impfNorm), id={};
+    Object.entries(IMPF_COLS).forEach(([k,al])=>{ for(const a of al){ const j=t.indexOf(a); if(j>=0 && !Object.values(id).includes(j)){ id[k]=j; break; } } });
+    if(id.fecha!=null && id.km!=null){ hi=i; idx=id; }
+  }
+  if(hi<0){ prev.innerHTML='<div style="color:var(--red);font-size:12px">No encontré las columnas F. FINAL y KM FINAL en la primera fila.</div>'; return; }
+  if(idx.cantidad==null){ prev.innerHTML='<div style="color:var(--red);font-size:12px">Falta la columna de cantidad (M3 o GALONES).</div>'; return; }
+  if(idx.unit==null && idx.total==null){ prev.innerHTML='<div style="color:var(--red);font-size:12px">Falta el precio (PXM3 / PXG) o el total (PRECIO).</div>'; return; }
+  const hoy=todayLocalISO(), errores=[];
+  const arr=state[fuelStateKey(impfTipo)]||[];
+  const vistos=new Set(arr.map(r=>(r.fFinal||'')+'|'+(parseFloat(r.kmFinal)||0)));
+  const kmVistos=new Set((state.kmManual||[]).map(k=>String(k.fechaHora||'').slice(0,10)+'|'+k.km));
+  let dup=0;
+  for(let i=hi+1;i<m.length;i++){
+    const row=m[i]; if(!row || row.every(vacio)) continue;
+    const n=i+1, g=k=>idx[k]!=null?row[idx[k]]:'';
+    const fecha=_impfFecha(g('fecha')), km=_impfNum(g('km')), cant=_impfNum(g('cantidad'));
+    let precio=_impfNum(g('unit')); const total=_impfNum(g('total'));
+    let recaudo=_impfNum(g('recaudo')); const totalRec=_impfNum(g('totalRec'));
+    if(!fecha || !esFechaValida(fecha)){ errores.push(`Fila ${n}: la fecha final no se entiende`); continue; }
+    if(fecha>hoy){ errores.push(`Fila ${n}: la fecha ${fecha.split('-').reverse().join('/')} es futura`); continue; }
+    if(isNaN(km)||km<0){ errores.push(`Fila ${n}: falta el KM FINAL (${fecha.split('-').reverse().join('/')})`); continue; }
+    if(!(cant>0) && !(total>0)){ const k=fecha+'|'+km; if(!kmVistos.has(k)){ kmVistos.add(k); impfKm.push({km, fecha}); } continue; }
+    if(!(cant>0)){ errores.push(`Fila ${n}: falta la cantidad`); continue; }
+    if(total>0) precio=total/cant; // el precio del Excel suele venir redondeado
+    if(!(precio>0)){ errores.push(`Fila ${n}: falta el precio o el total`); continue; }
+    const k=fecha+'|'+km; if(vistos.has(k)){ dup++; continue; } vistos.add(k);
+    if(!(recaudo>0) && totalRec>0 && total>0 && totalRec-total>0.004) recaudo=totalRec-total;
+    const fila={id:'fuel-imp-'+Date.now()+'-'+i, fFinal:fecha, kmFinal:String(Math.round(km*100)/100), galones:String(Math.round(cant*1000)/1000), pxg:String(Math.round(precio*10000)/10000),
+      gastoRegistrado:{tipo:'manual', id:null, nota:'Histórico cargado desde Excel'}};
+    if(impfTipo==='glp' && recaudo>0) fila.recaudo=Math.round(recaudo*100)/100;
+    const fI=_impfFecha(g('fInicial')), kI=_impfNum(g('kmInicial'));
+    if(fI && esFechaValida(fI)) fila._fI=fI;
+    if(!isNaN(kI)) fila._kI=kI;
+    if(/^no\b|^n$/.test(_impfNorm(g('rendimiento')))) fila.sinRendimiento=true;
+    impfFilas.push(fila);
+  }
+  const gnv=impfTipo==='glp', u=gnv?'m³':'gal';
+  const tot=impfFilas.reduce((s,f)=>s+parseFloat(f.galones)*parseFloat(f.pxg),0), rec=impfFilas.reduce((s,f)=>s+(f.recaudo||0),0);
+  const fechas=impfFilas.map(f=>f.fFinal).sort();
+  let h=`<div style="background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.6">`;
+  h+=impfFilas.length?`<b>${impfFilas.length} recarga${impfFilas.length===1?'':'s'}</b> de ${gnv?'GNV':'gasolina'} (${fechas[0].split('-').reverse().join('/')} al ${fechas[fechas.length-1].split('-').reverse().join('/')}) · S/ ${fuelFmt(tot,2)}${rec>0?' + recaudo S/ '+fuelFmt(rec,2):''}`:'No hay recargas nuevas para cargar.';
+  if(impfKm.length) h+=`<br>${impfKm.length} fila${impfKm.length===1?'':'s'} solo con kilometraje → se guarda${impfKm.length===1?'':'n'} como lectura del odómetro.`;
+  if(dup) h+=`<br>${dup} recarga${dup===1?'':'s'} ya estaba${dup===1?'':'n'} en la app (no se repite${dup===1?'':'n'}).`;
+  if(impfFilas.some(f=>f.sinRendimiento)) h+=`<br>${impfFilas.filter(f=>f.sinRendimiento).length} con RENDIMIENTO = NO (no cuentan para el km por ${u}).`;
+  if(gnv && rec>0 && deudaGnv()) h+=`<br>Los recaudos no se descuentan solos de la deuda de la instalación: después podrás elegir «Descontarlos ahora».`;
+  h+=`</div>`;
+  if(errores.length) h+=`<div style="margin-top:8px;font-size:11px;color:var(--amber);line-height:1.5"><b>No se cargan ${errores.length} fila${errores.length===1?'':'s'}:</b><br>${errores.slice(0,8).map(escapeHtml).join('<br>')}${errores.length>8?'<br>… y '+(errores.length-8)+' más':''}</div>`;
+  if(impfFilas.length){
+    h+=`<div style="margin-top:8px;font-size:11px;color:var(--text2)">${impfFilas.slice(0,4).map(f=>`${f.fFinal.split('-').reverse().join('/')} · ${fuelInputFmt(f.kmFinal)} km · ${fuelFmt(parseFloat(f.galones),2)} ${u} · S/ ${fuelFmt(parseFloat(f.galones)*parseFloat(f.pxg),2)}${f.recaudo?' + '+fuelFmt(f.recaudo,2):''}`).join('<br>')}${impfFilas.length>4?'<br>…':''}</div>`;
+  }
+  prev.innerHTML=h;
+  ok.disabled=!(impfFilas.length||impfKm.length);
+  ok.textContent=impfFilas.length?`Cargar ${impfFilas.length} recarga${impfFilas.length===1?'':'s'}`:'Cargar lecturas de km';
+}
+function confirmarImportFuel(){
+  if(!impfFilas.length && !impfKm.length) return;
+  const key=fuelStateKey(impfTipo);
+  if(!state[key]) state[key]=[];
+  const nuevos=new Set(impfFilas.map(f=>f.id));
+  state[key]=[...state[key], ...impfFilas].sort((a,b)=>String(a.fFinal||'').localeCompare(String(b.fFinal||''))||((parseFloat(a.kmFinal)||0)-(parseFloat(b.kmFinal)||0)));
+  // Inicio del tramo: se respeta lo del Excel solo si no coincide con la recarga anterior
+  state[key].forEach((r,i)=>{
+    if(!nuevos.has(r.id)) return;
+    const p=i>0?state[key][i-1]:null;
+    if(r._fI && (!p || r._fI!==p.fFinal)){ r.fInicial=r._fI; if(p) r.fInicialManual=true; } else r.fInicial=p?(p.fFinal||''):(r._fI||'');
+    if(r._kI!==undefined && (!p || r._kI!==parseFloat(p.kmFinal))){ r.kmInicial=String(r._kI); if(p) r.kmInicialManual=true; } else r.kmInicial=p?(p.kmFinal||''):'';
+    delete r._fI; delete r._kI;
+  });
+  if(impfKm.length){
+    if(!Array.isArray(state.kmManual)) state.kmManual=[];
+    impfKm.forEach((k,j)=>state.kmManual.push({id:'kmm-imp-'+Date.now()+'-'+j, km:k.km, fechaHora:k.fecha+'T12:00', origen:'web', motivo:'Histórico (Excel)'}));
+    state.kmManual.sort((a,b)=>String(a.fechaHora).localeCompare(String(b.fechaHora)));
+  }
+  const n=impfFilas.length, nk=impfKm.length;
+  saveState(true);
+  cerrarImportFuel();
+  renderCombustible();
+  switchFuelType(impfTipo);
+  toast(`Histórico cargado: ${n} recarga${n===1?'':'s'}${nk?' y '+nk+' lectura'+(nk===1?'':'s')+' de km':''}`);
+}
+
 // ── COMPUTE ROW FIELDS ────────────────────────────────
 // ══════════════════════════════════════════════════════
 //  MANTENIMIENTO DEL AUTO — proyecta cuándo tocará el próximo mantenimiento
@@ -25980,6 +26159,13 @@ function seedDemo(){
 // Al publicar una versión nueva: agregar una entrada AL INICIO de APP_CHANGELOG
 // y actualizar APP_VERSION / APP_VERSION_DATE (el aviso compara APP_VERSION_DATE).
 const APP_CHANGELOG = [
+ {
+  "v": "v2.1.0",
+  "fecha": "17/10/26",
+  "cambios": [
+   "Combustible: botón «Cargar histórico» en GNV y en Gasolina para subir tus recargas anteriores desde Excel (con recaudo, rendimiento SI/NO y plantilla de ejemplo)."
+  ]
+ },
  {
   "v": "v2.0.2",
   "fecha": "17/10/26",
