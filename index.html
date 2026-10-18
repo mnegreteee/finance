@@ -827,6 +827,10 @@ body.compact-mode .anual-table{font-size:11px;}
 .fuel-chart-rango{display:flex;gap:5px;flex-wrap:wrap;margin:-6px 0 12px;}
 .fuel-chart-rango .fuel-chart-tab{padding:3px 9px;font-size:10px;}
 .fuel-chart-vacio{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:12px;color:var(--text3);}
+.fuel-table tr.fuel-row-ultima td{background:rgba(91,141,239,.13);font-weight:600;}
+.fuel-table tr.fuel-row-ultima td:first-child{box-shadow:inset 4px 0 0 var(--accent);position:relative;}
+.fuel-table tr.fuel-row-ultima td:last-child{box-shadow:inset -4px 0 0 var(--accent);}
+.fuel-ultima-tag{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.4px;color:#fff;background:var(--accent);border-radius:10px;padding:1px 7px;margin-bottom:3px;white-space:nowrap;}
 .fuel-vermas{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--text3);margin-top:8px;}
 .fuel-highlight{background:rgba(240,165,60,.08)!important;}
 @media(max-width:600px){.fuel-summary{grid-template-columns:repeat(2,1fr);}}
@@ -3881,9 +3885,9 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
 //  VERSIÓN DE LA APP — actualizar en cada cambio solicitado
 //  Formato: vMAYOR.MENOR.PARCHE — fecha del último cambio
 // ══════════════════════════════════════════════════════
-const APP_VERSION = 'v2.4.0';
-const APP_VERSION_DATE = '17/10/26 - 22:25'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'Nuevo: relojes mundiales en el Resumen (se administran en Config → Apariencia).';
+const APP_VERSION = 'v2.4.1';
+const APP_VERSION_DATE = '17/10/26 - 22:39'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'Combustible: la última recarga se resalta en la tabla (fondo azul, borde y etiqueta «Última recarga»).';
 // Versión simplificada para el papá: oculta y apaga los módulos que no usa
 // (bot, aprobaciones, IA, inversiones, AFP, sueldos, compras, TC, etc.).
 const APP_LITE = true;
@@ -20752,8 +20756,8 @@ function renderFuelSection(type){
       const isLast=i===rows.length-1;
       const pxgCol=r.pxgVar===null?'fuel-pxg-nt':r.pxgVar>0?'fuel-pxg-up':'fuel-pxg-dn';
       const pxgStr=r.pxgVar===null?'—':(r.pxgVar>0?'+':'')+fuelFmt(r.pxgVar,1)+'%';
-      return `<tr id="fuel-row-${type}-${r.id}" style="${isLast?'background:rgba(91,141,239,.04)':''}">
-        <td><input class="fuel-inp date-inp" type="date" value="${r.fInicial||''}" onchange="updateFuelField('${type}','${r.id}','fInicial',this.value)" title="F. Inicial (editable, por defecto hereda del F. Final anterior)"></td>
+      return `<tr id="fuel-row-${type}-${r.id}" class="${isLast?'fuel-row-ultima':''}" title="${isLast?'Última recarga':''}">
+        <td>${isLast?'<div class="fuel-ultima-tag">⭐ ÚLTIMA RECARGA</div>':''}<input class="fuel-inp date-inp" type="date" value="${r.fInicial||''}" onchange="updateFuelField('${type}','${r.id}','fInicial',this.value)" title="F. Inicial (editable, por defecto hereda del F. Final anterior)"></td>
         <td><input class="fuel-inp date-inp" type="date" value="${r.fFinal||''}" onchange="updateFuelField('${type}','${r.id}','fFinal',this.value)"></td>
         <td><input class="fuel-inp" type="text" inputmode="numeric" value="${fuelInputFmt(r.kmInicial)}" onchange="updateFuelField('${type}','${r.id}','kmInicial',this.value.replace(/,/g,''))" style="width:75px" placeholder="KM" title="KM Inicial (editable, por defecto hereda del KM Final anterior)"></td>
         <td><input class="fuel-inp" type="text" inputmode="numeric" value="${fuelInputFmt(r.kmFinal)}" onchange="updateFuelField('${type}','${r.id}','kmFinal',this.value.replace(/,/g,''))" style="width:75px" placeholder="KM"></td>
@@ -26243,6 +26247,13 @@ function seedDemo(){
 // Al publicar una versión nueva: agregar una entrada AL INICIO de APP_CHANGELOG
 // y actualizar APP_VERSION / APP_VERSION_DATE (el aviso compara APP_VERSION_DATE).
 const APP_CHANGELOG = [
+ {
+  "v": "v2.4.1",
+  "fecha": "17/10/26",
+  "cambios": [
+   "Combustible: la última recarga (la más reciente) se resalta en la tabla con fondo azul, borde y la etiqueta «⭐ Última recarga»."
+  ]
+ },
  {
   "v": "v2.4.0",
   "fecha": "17/10/26",
