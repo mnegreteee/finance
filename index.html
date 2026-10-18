@@ -1268,7 +1268,7 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
 .cfg-group.cfg-danger .cfg-group-t b{color:var(--red);}
 .cfg-group.cfg-danger{border-color:rgba(248,113,113,.35);}
 /* Versión lite: módulos apagados */
-#chatia-btn,#chatia-panel,#relojes-mundiales,#nav-aprobaciones,#demo-banner{display:none!important;}
+#chatia-btn,#chatia-panel,#nav-aprobaciones,#demo-banner{display:none!important;}
 .field:has(#pf-texto-correo){display:none!important;}
 #page-finanzas .tc-chart{display:none!important;}
 .config-row:has(#cfg-uso-fb){display:none!important;}
@@ -1308,6 +1308,7 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
     <button class="nav-tab" id="nav-gastos" onclick="showPage('gastos')">💸 Gastos</button>
     <button class="nav-tab" id="nav-deudas" onclick="showPage('deudas')">🤝 Deudas</button>
     <button class="nav-tab" id="nav-combustible" onclick="showPage('combustible')">⛽ Combustible</button>
+    <button class="nav-tab" id="nav-calendario" onclick="showPage('calendario')">📅 Calendario</button>
   </div>
   <div class="nav-right">
     <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
@@ -1374,6 +1375,10 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
           <div class="config-row">
             <div class="config-row-label">Reportes en PDF<small>Resumen de cualquier mes, o resumen anual (wrap-up)</small></div>
             <button class="config-action-btn neutral" onclick="openReportesModal()">📄 Generar reporte</button>
+          </div>
+          <div class="config-row">
+            <div class="config-row-label">Relojes Mundiales<small id="cfg-relojes-count">4 ciudades</small></div>
+            <button class="config-action-btn neutral" onclick="closeConfig();abrirGestionRelojes()">🌍 Administrar</button>
           </div>
         </div>
 
@@ -3876,9 +3881,9 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
 //  VERSIÓN DE LA APP — actualizar en cada cambio solicitado
 //  Formato: vMAYOR.MENOR.PARCHE — fecha del último cambio
 // ══════════════════════════════════════════════════════
-const APP_VERSION = 'v2.2.3';
-const APP_VERSION_DATE = '17/10/26 - 22:09'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'Limpieza: insights de deudas ya no mezclan lo que debes con lo que te deben; sin enlaces a secciones que no existen en esta app.';
+const APP_VERSION = 'v2.4.0';
+const APP_VERSION_DATE = '17/10/26 - 22:25'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'Nuevo: relojes mundiales en el Resumen (se administran en Config → Apariencia).';
 // Versión simplificada para el papá: oculta y apaga los módulos que no usa
 // (bot, aprobaciones, IA, inversiones, AFP, sueldos, compras, TC, etc.).
 const APP_LITE = true;
@@ -6621,7 +6626,7 @@ function gsExportar(){
   XLSX.writeFile(wb,'gastos_'+GS.y+'-'+String(GS.m+1).padStart(2,'0')+'.xlsx');
 }
 
-const PAGINAS_LITE = new Set(['dashboard','finanzas','gastos','tarjetas','deudas','combustible']);
+const PAGINAS_LITE = new Set(['dashboard','finanzas','gastos','tarjetas','deudas','combustible','calendario']);
 function showPage(name){
   if(APP_LITE && !PAGINAS_LITE.has(name)) name='dashboard';
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -17000,7 +17005,6 @@ function moverReloj(id,dir){
   renderGestionRelojesLista();
 }
 function renderRelojesMundiales(){
-  if(APP_LITE){ const c=document.getElementById('relojes-mundiales'); if(c) c.innerHTML=''; return; }
   const cont=document.getElementById('relojes-mundiales');
   if(!cont) return;
   const relojes=relojesActuales();
@@ -26240,6 +26244,20 @@ function seedDemo(){
 // y actualizar APP_VERSION / APP_VERSION_DATE (el aviso compara APP_VERSION_DATE).
 const APP_CHANGELOG = [
  {
+  "v": "v2.4.0",
+  "fecha": "17/10/26",
+  "cambios": [
+   "Resumen: relojes mundiales arriba a la derecha, igual que en la app de Miguel (se eligen las ciudades en Config → Apariencia → Relojes Mundiales)."
+  ]
+ },
+ {
+  "v": "v2.3.0",
+  "fecha": "17/10/26",
+  "cambios": [
+   "Nueva pestaña 📅 Calendario: tus fechas importantes, más las cuotas de tarjeta y los pagos e ingresos frecuentes de cada mes, que aparecen solos."
+  ]
+ },
+ {
   "v": "v2.2.3",
   "fecha": "17/10/26",
   "cambios": [
@@ -26391,7 +26409,7 @@ function cfgResumenes(){
   const set=(id,t)=>{ const e=document.getElementById('cfg-s-'+id); if(e) e.textContent=t; };
   try{
     const oscuro=(document.documentElement.getAttribute('data-theme')||'dark')==='dark';
-    set('apariencia','Tema '+(oscuro?'oscuro':'claro')+' · acento, fondo, cifras');
+    set('apariencia','Tema '+(oscuro?'oscuro':'claro')+' · acento, fondo, cifras, relojes');
     set('avisos','Notificaciones · reportes PDF');
     const tc=(typeof state!=='undefined'&&state.tc)?state.tc:null;
     set('finanzas',(tc?('TC '+Number(tc.compra).toFixed(3)+' / '+Number(tc.venta).toFixed(3)+' · '):'')+'tarjetas · cuentas · categorías');
