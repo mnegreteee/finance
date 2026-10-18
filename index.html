@@ -1270,6 +1270,8 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
 /* Versión lite: módulos apagados */
 #chatia-btn,#chatia-panel,#relojes-mundiales,#nav-aprobaciones,#demo-banner{display:none!important;}
 .field:has(#pf-texto-correo){display:none!important;}
+#page-finanzas .tc-chart{display:none!important;}
+.config-row:has(#cfg-uso-fb){display:none!important;}
 </style>
 </head>
 <body>
@@ -1711,10 +1713,10 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
       <div class="card-value money" id="sum-disp-cur">S/ 0.00</div>
       <div class="card-sub" id="sub-disp-cur">—</div>
     </div>
-    <div class="card c-proj" onclick="showPage('proyeccion')">
+    <div class="card c-proj">
       <div class="card-label">📅 Proyección de cierre</div>
       <div class="card-value money" id="sum-proyeccion-cierre">S/ 0.00</div>
-      <div class="card-sub" id="sum-proyeccion-sub">Ver detalle →</div>
+      <div class="card-sub" id="sum-proyeccion-sub">estimado a fin de mes</div>
       <div class="proj-chevron">›</div>
     </div>
     <div class="card c-purple">
@@ -3874,9 +3876,9 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
 //  VERSIÓN DE LA APP — actualizar en cada cambio solicitado
 //  Formato: vMAYOR.MENOR.PARCHE — fecha del último cambio
 // ══════════════════════════════════════════════════════
-const APP_VERSION = 'v2.2.1';
-const APP_VERSION_DATE = '17/10/26 - 21:57'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'Tarjetas: la sección «Consumos Frecuentes» se puede contraer y expandir tocando su título.';
+const APP_VERSION = 'v2.2.3';
+const APP_VERSION_DATE = '17/10/26 - 22:09'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'Limpieza: insights de deudas ya no mezclan lo que debes con lo que te deben; sin enlaces a secciones que no existen en esta app.';
 // Versión simplificada para el papá: oculta y apaga los módulos que no usa
 // (bot, aprobaciones, IA, inversiones, AFP, sueldos, compras, TC, etc.).
 const APP_LITE = true;
@@ -8279,7 +8281,7 @@ function renderSummaryCards(){
     if(esMesActualReal){
       const proj=calcularProyeccionCierre();
       projCard.textContent=M(fmtS(proj.proyeccionPen));
-      if(projSub) projSub.textContent='Ver detalle →';
+      if(projSub) projSub.textContent='estimado a fin de mes';
     } else {
       projCard.textContent=M(fmtS(dc));
       if(projSub) projSub.textContent='Mes cerrado — es el disponible real';
@@ -12454,7 +12456,7 @@ function generarReporteMensualPDF(y,m){
   }
 
   // ── Deudas (préstamos por cobrar) — estado ACTUAL, no histórico del mes ──
-  const deudasPend=(state.deudas||[]).filter(d=>d.status==='pendiente');
+  const deudasPend=(state.deudas||[]).filter(d=>d.status==='pendiente'&&d.direccion!=='yo_debo');
   if(deudasPend.length){
     const rate=state.tc?.venta||3.45;
     const totalPend=deudasPend.reduce((s,d)=>s+(d.currency==='USD'?d.monto*rate:d.monto),0);
@@ -12764,10 +12766,7 @@ function applyHistorico(){
 const AVATARS=['👩','👨','🧑','👧','👦','👴','👵','🧔','👱'];
 function randomAvatar(){return AVATARS[Math.floor(Math.random()*AVATARS.length)];}
 function paymentKey(sid,pid){return sid+'-'+pid+'-'+state.currentYear+'-'+String(state.currentMonth+1).padStart(2,'0');}
-const DEFAULT_SERVICIOS={
-  spotify:{name:'Spotify',icon:'🎵',pricePerPerson:15.13,payDay:9,account:'BBVA',people:[{id:'p1',name:'Mamá',avatar:'👩'},{id:'p2',name:'Papá',avatar:'👨'},{id:'p3',name:'Hermano',avatar:'🧑'}]},
-  youtube:{name:'YouTube Premium',icon:'▶️',pricePerPerson:12.00,payDay:9,account:'BBVA',people:[{id:'q1',name:'Mamá',avatar:'👩'},{id:'q2',name:'Papá',avatar:'👨'}]}
-};
+const DEFAULT_SERVICIOS={}; // versión lite: sin servicios compartidos de ejemplo
 function monthKey(y,m){ return y+'-'+String(m+1).padStart(2,'0'); }
 
 function getAllServices(y,mo){
@@ -17930,10 +17929,11 @@ function renderNuevosWidgetsDashboard(){
   const combEl=document.getElementById('dash-combustible-list');
   if(combEl){
     const lineas=[];
-    [['combustibleGas','⛽ Gasolina'],['combustibleGlp','🔥 GNV']].forEach(([key,label])=>{
+    [['combustibleGlp','🔵 GNV'],['combustibleGas','🟡 Gasolina']].forEach(([key,label])=>{
       const arr=state[key]||[];
       const ultimo=arr.length?arr[arr.length-1]:null;
-      if(ultimo) lineas.push(`<div style="font-size:12px;padding:4px 0">${label}: última recarga ${ultimo.fFinal||ultimo.fInicial||'—'}</div>`);
+      const _f=ultimo?(ultimo.fFinal||ultimo.fInicial||''):'';
+      if(ultimo) lineas.push(`<div style="font-size:12px;padding:4px 0">${label}: última recarga ${_f?_f.split('-').reverse().join('/'):'—'}</div>`);
     });
     const proyMant=(state.mantenimientos||[])
       .map(item=>({item, proy:getProyeccionMantenimientoItem(item)}))
@@ -26240,6 +26240,23 @@ function seedDemo(){
 // y actualizar APP_VERSION / APP_VERSION_DATE (el aviso compara APP_VERSION_DATE).
 const APP_CHANGELOG = [
  {
+  "v": "v2.2.3",
+  "fecha": "17/10/26",
+  "cambios": [
+   "Insights y reporte PDF: las deudas que tú debes (ej. la instalación del GNV) ya no se cuentan como «préstamos por cobrar»; ahora se muestran aparte.",
+   "Finanzas: la tarjeta «Proyección de cierre» ya no lleva a una sección que no existe, y se quitó el gráfico del comparador de tipo de cambio.",
+   "Resumen: el cuadro de Combustible muestra GNV primero y la fecha en formato dd/mm/aa.",
+   "Config: se ocultó el dato técnico «Uso de Firebase»."
+  ]
+ },
+ {
+  "v": "v2.2.2",
+  "fecha": "17/10/26",
+  "cambios": [
+   "Se quitó el aviso «Cobros pendientes este mes» (Spotify / YouTube) que aparecía en Finanzas: venía de datos de ejemplo de la otra app."
+  ]
+ },
+ {
   "v": "v2.2.1",
   "fecha": "17/10/26",
   "cambios": [
@@ -27622,7 +27639,7 @@ function insDash(){
   try{ ['PEN','USD'].forEach(cu=>{ const ms=(state.metasAhorro||[]).filter(g=>!g.esMetaGrande&&insCu(g.currency)===cu&&g.montoObjetivo>0&&typeof g.montoActual==='number'&&g.montoActual<g.montoObjetivo).map(g=>({g,p:g.montoActual/g.montoObjetivo*100})).sort((x,z)=>z.p-x.p);
     if(ms.length) out.push({ico:'🎯',tono:'neu',cu,txt:`Tu meta más avanzada en ${insNomCu(cu)}: ${b(escapeHtml(ms[0].g.nombre))} al ${b(ms[0].p.toFixed(0)+'%')} (${insMon(ms[0].g.montoActual,cu)} de ${insMon(ms[0].g.montoObjetivo,cu)})${ms.length>1?` · luego ${escapeHtml(ms[1].g.nombre)} (${ms[1].p.toFixed(0)}%)`:''}.`}); }); }catch(e){ console.warn('Cálculo omitido por error:', e&&e.message); }
   // préstamos por cobrar viejos
-  try{ ['PEN','USD'].forEach(cu=>{ const v=(state.deudas||[]).filter(x=>x.status==='pendiente'&&insCu(x.currency)===cu&&x.fecha&&(Date.now()-new Date(x.fecha+'T12:00:00'))/864e5>30);
+  try{ ['PEN','USD'].forEach(cu=>{ const v=(state.deudas||[]).filter(x=>x.status==='pendiente'&&x.direccion!=='yo_debo'&&insCu(x.currency)===cu&&x.fecha&&(Date.now()-new Date(x.fecha+'T12:00:00'))/864e5>30);
     if(v.length) out.push({ico:'🤝',tono:'neu',cu,txt:`${b(v.length+' préstamo'+(v.length===1?'':'s'))} sin cobrar hace más de 30 días (${insMon(v.reduce((a,x)=>a+x.monto,0),cu)}).`}); }); }catch(e){ console.warn('Cálculo omitido por error:', e&&e.message); }
   return out.slice(0,12);
 }
@@ -27671,7 +27688,9 @@ function insTarj(){
 function insDeudas(){
   const out=[], hoy=new Date(), b=insB;
   ['PEN','USD'].forEach(cu=>{
-    const pend=(state.deudas||[]).filter(x=>x.status==='pendiente'&&insCu(x.currency)===cu);
+    const debo=(state.deudas||[]).filter(x=>x.status==='pendiente'&&x.direccion==='yo_debo'&&insCu(x.currency)===cu);
+    if(debo.length) out.push({ico:'🔴',tono:'neu',cu,txt:`Debes ${b(insMon(debo.reduce((a,x)=>a+x.monto,0),cu))} en ${b(debo.length+' deuda'+(debo.length===1?'':'s'))}${debo.length<=3?' ('+debo.map(x=>escapeHtml(x.nombre||'—')).join(', ')+')':''}.`});
+    const pend=(state.deudas||[]).filter(x=>x.status==='pendiente'&&x.direccion!=='yo_debo'&&insCu(x.currency)===cu);
     if(pend.length){ out.push({ico:'🤝',tono:'neu',cu,txt:`Tienes ${b(pend.length+' préstamo'+(pend.length===1?'':'s'))} por cobrar en ${insNomCu(cu)}: ${b(insMon(pend.reduce((a,x)=>a+x.monto,0),cu))}.`});
       const dias=x=>x.fecha?Math.floor((hoy-new Date(x.fecha+'T12:00:00'))/864e5):0, v=[...pend].sort((a,z)=>dias(z)-dias(a))[0];
       if(v&&dias(v)>=15) out.push({ico:'⏳',tono:dias(v)>60?'warn':'neu',cu,txt:`El más antiguo es ${b(escapeHtml(v.nombre||'—'))} (${insMon(v.monto,cu)}), pendiente hace ${b(dias(v)+' días')}. Quizá sea momento de recordárselo.`}); }
