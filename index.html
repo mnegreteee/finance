@@ -824,6 +824,10 @@ body.compact-mode .anual-table{font-size:11px;}
 .fuel-chart-tabs{display:flex;gap:6px;margin-bottom:14px;}
 .fuel-chart-tab{padding:4px 12px;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:all .12s;}
 .fuel-chart-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.fuel-chart-rango{display:flex;gap:5px;flex-wrap:wrap;margin:-6px 0 12px;}
+.fuel-chart-rango .fuel-chart-tab{padding:3px 9px;font-size:10px;}
+.fuel-chart-vacio{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:12px;color:var(--text3);}
+.fuel-vermas{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--text3);margin-top:8px;}
 .fuel-highlight{background:rgba(240,165,60,.08)!important;}
 @media(max-width:600px){.fuel-summary{grid-template-columns:repeat(2,1fr);}}
 
@@ -3085,7 +3089,16 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
         <button class="fuel-chart-tab" onclick="setFuelChart('glp',2,this)">Total</button>
         <button class="fuel-chart-tab" onclick="setFuelChart('glp',3,this)">KM Diarios</button>
       </div>
-      <div style="height:180px"><canvas id="fuel-chart-glp"></canvas></div>
+      <div class="fuel-chart-rango" id="frango-glp">
+        <button class="fuel-chart-tab" data-r="semana" onclick="setFuelRango('glp','semana')">Esta semana</button>
+        <button class="fuel-chart-tab" data-r="mes" onclick="setFuelRango('glp','mes')">Este mes</button>
+        <button class="fuel-chart-tab" data-r="3m" onclick="setFuelRango('glp','3m')">Últimos 3 meses</button>
+        <button class="fuel-chart-tab" data-r="6m" onclick="setFuelRango('glp','6m')">Últimos 6 meses</button>
+        <button class="fuel-chart-tab" data-r="anio" onclick="setFuelRango('glp','anio')">Este año</button>
+        <button class="fuel-chart-tab" data-r="12m" onclick="setFuelRango('glp','12m')">Último año</button>
+        <button class="fuel-chart-tab active" data-r="todo" onclick="setFuelRango('glp','todo')">Todo</button>
+      </div>
+      <div style="height:180px;position:relative"><canvas id="fuel-chart-glp"></canvas><div class="fuel-chart-vacio" id="fuel-chart-vacio-glp">Sin recargas en este periodo</div></div>
     </div>
     <div class="fuel-table-wrap">
       <table class="fuel-table"><thead><tr>
@@ -3099,6 +3112,7 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
         <th>%PRECIO</th><th>GASTO</th><th></th>
       </tr></thead><tbody id="fuel-tbody-glp"></tbody></table>
     </div>
+    <div class="fuel-vermas" id="fuel-vermas-glp"></div>
   </div>
 
   <!-- ══ SECCIÓN GASOLINA ══ -->
@@ -3124,7 +3138,16 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
         <button class="fuel-chart-tab" onclick="setFuelChart('gas',2,this)">Total</button>
         <button class="fuel-chart-tab" onclick="setFuelChart('gas',3,this)">KM Diarios</button>
       </div>
-      <div style="height:180px"><canvas id="fuel-chart-gas"></canvas></div>
+      <div class="fuel-chart-rango" id="frango-gas">
+        <button class="fuel-chart-tab" data-r="semana" onclick="setFuelRango('gas','semana')">Esta semana</button>
+        <button class="fuel-chart-tab" data-r="mes" onclick="setFuelRango('gas','mes')">Este mes</button>
+        <button class="fuel-chart-tab" data-r="3m" onclick="setFuelRango('gas','3m')">Últimos 3 meses</button>
+        <button class="fuel-chart-tab" data-r="6m" onclick="setFuelRango('gas','6m')">Últimos 6 meses</button>
+        <button class="fuel-chart-tab" data-r="anio" onclick="setFuelRango('gas','anio')">Este año</button>
+        <button class="fuel-chart-tab" data-r="12m" onclick="setFuelRango('gas','12m')">Último año</button>
+        <button class="fuel-chart-tab active" data-r="todo" onclick="setFuelRango('gas','todo')">Todo</button>
+      </div>
+      <div style="height:180px;position:relative"><canvas id="fuel-chart-gas"></canvas><div class="fuel-chart-vacio" id="fuel-chart-vacio-gas">Sin recargas en este periodo</div></div>
     </div>
     <div class="fuel-table-wrap">
       <table class="fuel-table"><thead><tr>
@@ -3136,6 +3159,7 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
         <th>MONTO<br>DIARIO</th><th>TOTAL GAS</th><th>%PxG</th><th>GASTO</th><th></th>
       </tr></thead><tbody id="fuel-tbody-gas"></tbody></table>
     </div>
+    <div class="fuel-vermas" id="fuel-vermas-gas"></div>
   </div>
 
 </div>
@@ -3845,9 +3869,9 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
 //  VERSIÓN DE LA APP — actualizar en cada cambio solicitado
 //  Formato: vMAYOR.MENOR.PARCHE — fecha del último cambio
 // ══════════════════════════════════════════════════════
-const APP_VERSION = 'v2.1.0';
-const APP_VERSION_DATE = '17/10/26 - 21:29'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'Nuevo: cargar el histórico de GNV y Gasolina desde Excel (botón «Cargar histórico» en Combustible).';
+const APP_VERSION = 'v2.2.0';
+const APP_VERSION_DATE = '17/10/26 - 21:39'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'Combustible: % pagado y por pagar en la deuda del GNV, filtros de tiempo en el gráfico y la tabla muestra solo las últimas 10 recargas (con opción de ver todo).';
 // Versión simplificada para el papá: oculta y apaga los módulos que no usa
 // (bot, aprobaciones, IA, inversiones, AFP, sueldos, compras, TC, etc.).
 const APP_LITE = true;
@@ -19469,6 +19493,26 @@ function confirmarCompensacion(){
 // ══════════════════════════════════════════════════════
 let fuelCharts = {glp:null, gas:null};
 let fuelChartIdx = {glp:0, gas:0};
+let fuelChartRango = {glp:'todo', gas:'todo'};
+let fuelVerTodo = {glp:false, gas:false};
+const FUEL_FILAS_VISIBLES = 10;
+// Fecha desde la que se muestran las recargas en el gráfico (YYYY-MM-DD), o '' = todo
+function fuelRangoDesde(r){
+  const h=new Date(); const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(r==='semana'){ const d=new Date(h); const dw=(d.getDay()+6)%7; d.setDate(d.getDate()-dw); return iso(d); } // desde el lunes
+  if(r==='mes') return iso(new Date(h.getFullYear(), h.getMonth(), 1));
+  if(r==='3m') return iso(new Date(h.getFullYear(), h.getMonth()-3, h.getDate()));
+  if(r==='6m') return iso(new Date(h.getFullYear(), h.getMonth()-6, h.getDate()));
+  if(r==='anio') return iso(new Date(h.getFullYear(), 0, 1));
+  if(r==='12m') return iso(new Date(h.getFullYear()-1, h.getMonth(), h.getDate()));
+  return '';
+}
+function setFuelRango(type, r){
+  fuelChartRango[type]=r;
+  document.querySelectorAll('#frango-'+type+' .fuel-chart-tab').forEach(b=>b.classList.toggle('active', b.dataset.r===r));
+  renderFuelChart(type, computeFuelRows(state[fuelStateKey(type)]||[]));
+}
+function toggleFuelVerTodo(type){ fuelVerTodo[type]=!fuelVerTodo[type]; renderFuelSection(type); }
 let activeFuelType = 'glp'; // currently visible tab
 
 // ── TYPE SWITCH ───────────────────────────────────────
@@ -19761,6 +19805,7 @@ function renderGnvDeuda(){
   const total=Number(d.montoOriginal)||((Number(d.monto)||0)+abonos+otros);
   const falta=d.status==='pagado'?0:(Number(d.monto)||0);
   const pct=total>0?Math.min(100,Math.max(0,(total-falta)/total*100)):0;
+  const _gPct=v=>total>0?(Math.round(v/total*1000)/10).toFixed(1)+'%':'—';
   const pend=falta>0.004?gnvRecaudosSinDescontar(d):[];
   const sp=pend.reduce((s,r)=>s+(parseFloat(r.recaudo)||0),0);
   el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
@@ -19769,12 +19814,12 @@ function renderGnvDeuda(){
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:10px">
       <div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Total deuda</div><div style="font-size:15px;font-weight:700;font-family:var(--mono)">${fm(total)}</div></div>
-      <div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Pagado con recaudo</div><div style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--green)">${fm(abonos)}</div><div style="font-size:9px;color:var(--text3)">${(d.abonosRecaudo||[]).length} recarga${(d.abonosRecaudo||[]).length===1?'':'s'}</div></div>
-      ${otros>0.004?`<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Otros pagos</div><div style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--green)">${fm(otros)}</div></div>`:''}
-      <div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Falta pagar</div><div style="font-size:15px;font-weight:700;font-family:var(--mono);color:${falta>0.004?'var(--red)':'var(--green)'}">${falta>0.004?fm(falta):'¡Pagada! ✅'}</div></div>
+      <div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Pagado con recaudo</div><div style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--green)">${fm(abonos)} <span style="font-size:11px">(${_gPct(abonos)})</span></div><div style="font-size:9px;color:var(--text3)">${(d.abonosRecaudo||[]).length} recarga${(d.abonosRecaudo||[]).length===1?'':'s'}</div></div>
+      ${otros>0.004?`<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Otros pagos</div><div style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--green)">${fm(otros)} <span style="font-size:11px">(${_gPct(otros)})</span></div></div>`:''}
+      <div><div style="font-size:9px;color:var(--text3);text-transform:uppercase">Falta pagar</div><div style="font-size:15px;font-weight:700;font-family:var(--mono);color:${falta>0.004?'var(--red)':'var(--green)'}">${falta>0.004?fm(falta)+` <span style="font-size:11px">(${_gPct(falta)})</span>`:'¡Pagada! ✅'}</div></div>
     </div>
     <div style="background:var(--bg3);border-radius:8px;height:8px;overflow:hidden"><div style="height:100%;width:${pct.toFixed(1)}%;background:var(--green)"></div></div>
-    <div style="font-size:10px;color:var(--text3);margin-top:5px">${pct.toFixed(0)}% pagado · cada recaudo que anotes en una recarga se descuenta solo.</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:5px">${pct.toFixed(1)}% pagado · ${(100-pct).toFixed(1)}% por pagar · cada recaudo que anotes en una recarga se descuenta solo.</div>
     ${pend.length?`<div style="margin-top:10px;background:var(--amber-bg);color:var(--amber);border-radius:8px;padding:8px 10px;font-size:11px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><span>Hay <b>${pend.length} recaudo${pend.length===1?'':'s'}</b> (${fm(sp)}) que aún no se descuentan de esta deuda.</span><button class="btn btn-primary" style="font-size:11px;padding:4px 10px" onclick="descontarRecaudosGnvPendientes()">Descontarlos ahora</button></div>`:''}`;
 }
 function gnvInfoDeuda(d){
@@ -20677,7 +20722,9 @@ function renderFuelSection(type){
     tbody.innerHTML=`<tr><td colspan="${type==='glp'?17:15}" style="text-align:center;color:var(--text3);padding:24px;font-size:12px">
       Sin recargas de ${type==='glp'?'GNV':'Gasolina'}. Agrega la primera con el botón de arriba.</td></tr>`;
   } else {
-    tbody.innerHTML=rows.map((r,i)=>{
+    const _ini=(fuelVerTodo[type]||rows.length<=FUEL_FILAS_VISIBLES)?0:rows.length-FUEL_FILAS_VISIBLES;
+    tbody.innerHTML=rows.slice(_ini).map((r,_j)=>{
+      const i=_ini+_j;
       const isLast=i===rows.length-1;
       const pxgCol=r.pxgVar===null?'fuel-pxg-nt':r.pxgVar>0?'fuel-pxg-up':'fuel-pxg-dn';
       const pxgStr=r.pxgVar===null?'—':(r.pxgVar>0?'+':'')+fuelFmt(r.pxgVar,1)+'%';
@@ -20701,6 +20748,15 @@ function renderFuelSection(type){
         <td><button onclick="deleteFuelRow('${type}','${r.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:2px 5px">✕</button></td>
       </tr>`;
     }).join('');
+  }
+  const _vm=document.getElementById('fuel-vermas-'+type);
+  if(_vm){
+    if(rows.length>FUEL_FILAS_VISIBLES){
+      _vm.innerHTML=fuelVerTodo[type]
+        ? `<span>Mostrando las ${rows.length} recargas</span><button class="config-action-btn neutral" style="font-size:11px;padding:4px 10px" onclick="toggleFuelVerTodo('${type}')">▴ Ver solo las últimas ${FUEL_FILAS_VISIBLES}</button>`
+        : `<span>Mostrando las últimas ${FUEL_FILAS_VISIBLES} de ${rows.length} recargas</span><button class="config-action-btn neutral" style="font-size:11px;padding:4px 10px" onclick="toggleFuelVerTodo('${type}')">▾ Ver todo el historial (${rows.length})</button>`;
+      _vm.style.display='flex';
+    } else { _vm.innerHTML=''; _vm.style.display='none'; }
   }
   renderFuelSummary(type, rows);
   renderFuelChart(type, rows);
@@ -20755,11 +20811,15 @@ function renderFuelChart(type, rows){
     {key:'kmDiarios',label:'KM Diarios',          color:'#3ec96e',           fmt:v=>fuelFmt(v,1)+' km'},
   ];
   const cfg=configs[fuelChartIdx[type]||0];
+  const _desde=fuelRangoDesde(fuelChartRango[type]||'todo');
+  if(_desde) rows=rows.filter(r=>(r.fFinal||r.fInicial||'')>=_desde);
   const valid=rows.filter(r=>{
     const v=cfg.key==='pxg'?parseFloat(r.pxg):r[cfg.key];
     return v!==null&&v!==undefined&&!isNaN(v)&&v>0;
   });
   if(fuelCharts[type]){fuelCharts[type].destroy();fuelCharts[type]=null;}
+  const _vacio=document.getElementById('fuel-chart-vacio-'+type);
+  if(_vacio) _vacio.style.display=valid.length?'none':'flex';
   if(!valid.length) return;
   const labels=valid.map(r=>fuelDateLabel(r.fFinal||r.fInicial)||'—');
   const data  =valid.map(r=>cfg.key==='pxg'?parseFloat(r.pxg):r[cfg.key]);
@@ -26159,6 +26219,15 @@ function seedDemo(){
 // Al publicar una versión nueva: agregar una entrada AL INICIO de APP_CHANGELOG
 // y actualizar APP_VERSION / APP_VERSION_DATE (el aviso compara APP_VERSION_DATE).
 const APP_CHANGELOG = [
+ {
+  "v": "v2.2.0",
+  "fecha": "17/10/26",
+  "cambios": [
+   "Deuda del GNV: porcentaje de lo pagado con recaudo y de lo que falta pagar.",
+   "Gráfico de combustible: filtros Esta semana, Este mes, Últimos 3 y 6 meses, Este año, Último año y Todo.",
+   "Tabla de recargas: muestra solo las últimas 10, con botón para ver todo el historial."
+  ]
+ },
  {
   "v": "v2.1.0",
   "fecha": "17/10/26",
