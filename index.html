@@ -1436,6 +1436,13 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
             <button class="config-action-btn neutral" onclick="document.getElementById('import-file').click()">⬆ Importar</button>
           </div>
           <div class="config-row">
+            <div class="config-row-label">Histórico combustible<small>Cargar recargas antiguas de GNV o gasolina desde Excel</small></div>
+            <div style="display:flex;gap:6px">
+              <button class="config-action-btn neutral" onclick="closeConfig();abrirImportFuel('glp')">🔵 GNV</button>
+              <button class="config-action-btn neutral" onclick="closeConfig();abrirImportFuel('gas')">🟡 Gasolina</button>
+            </div>
+          </div>
+          <div class="config-row">
             <div class="config-row-label">Histórico Excel<small>Cargar .xlsx de movimientos</small></div>
             <div style="display:flex;gap:6px">
               <button class="config-action-btn neutral" style="font-size:10px" onclick="descargarPlantillaHistoricoExcel()" title="Descargar plantilla en blanco">📥 Plantilla</button>
@@ -3027,6 +3034,7 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
 
   <div class="month-nav" style="margin-bottom:6px">
     <h1>⛽ Control de Combustible</h1>
+    <button class="config-action-btn neutral" style="font-size:11px;padding:5px 12px" onclick="exportarCombustibleExcel()" title="Descargar un Excel con todas las recargas de GNV y gasolina">⬇ Exportar Excel</button>
   </div>
 
   <!-- MANTENIMIENTO DEL AUTO — proyección basada en el kilometraje registrado -->
@@ -3095,7 +3103,6 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3)">🔵 Gas Natural Vehicular (GNV)</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="config-action-btn neutral" style="font-size:11px;padding:5px 10px" onclick="abrirImportFuel('glp')">📂 Cargar histórico</button>
         <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="addFuelRow('glp')">+ Nueva recarga GNV</button>
       </div>
     </div>
@@ -3149,7 +3156,6 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3)">🟡 Gasolina</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="config-action-btn neutral" style="font-size:11px;padding:5px 10px" onclick="abrirImportFuel('gas')">📂 Cargar histórico</button>
         <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="addFuelRow('gas')">+ Nueva recarga Gasolina</button>
       </div>
     </div>
@@ -3938,9 +3944,9 @@ body.compact-mode .fecha-imp-grid{grid-template-columns:repeat(3,1fr)!important;
 //  VERSIÓN DE LA APP — actualizar en cada cambio solicitado
 //  Formato: vMAYOR.MENOR.PARCHE — fecha del último cambio
 // ══════════════════════════════════════════════════════
-const APP_VERSION = 'v2.5.1';
-const APP_VERSION_DATE = '17/10/26 - 22:59'; // hora de Lima, Perú (UTC-5)
-const APP_VERSION_NOTE = 'Combustible: se muestran las últimas 12 recargas (antes 10), con opción de ver todo el historial.';
+const APP_VERSION = 'v2.6.0';
+const APP_VERSION_DATE = '17/10/26 - 23:15'; // hora de Lima, Perú (UTC-5)
+const APP_VERSION_NOTE = 'Combustible: botón «Exportar Excel» con todas las recargas de GNV y gasolina; «Cargar histórico» pasó a Config → Datos → Histórico combustible.';
 // Versión simplificada para el papá: oculta y apaga los módulos que no usa
 // (bot, aprobaciones, IA, inversiones, AFP, sueldos, compras, TC, etc.).
 const APP_LITE = true;
@@ -20068,6 +20074,7 @@ function analizarImportFuel(m){
   let dup=0;
   for(let i=hi+1;i<m.length;i++){
     const row=m[i]; if(!row || row.every(vacio)) continue;
+    if(String(row[0]==null?'':row[0]).trim().toUpperCase()==='TOTAL') continue; // fila de totales del Excel exportado
     const n=i+1, g=k=>idx[k]!=null?row[idx[k]]:'';
     const fecha=_impfFecha(g('fecha')), km=_impfNum(g('km')), cant=_impfNum(g('cantidad'));
     let precio=_impfNum(g('unit')); const total=_impfNum(g('total'));
@@ -20130,6 +20137,7 @@ function confirmarImportFuel(){
   const n=impfFilas.length, nk=impfKm.length;
   saveState(true);
   cerrarImportFuel();
+  showPage('combustible');
   renderCombustible();
   switchFuelType(impfTipo);
   toast(`Histórico cargado: ${n} recarga${n===1?'':'s'}${nk?' y '+nk+' lectura'+(nk===1?'':'s')+' de km':''}`);
@@ -20757,6 +20765,57 @@ function guardarRegistrarMantenimiento(){
   renderMantenimiento();
   toast(item.nombre+' registrado — el contador se reinició');
 }
+// Descarga un Excel con TODAS las recargas: una hoja por combustible, con las
+// mismas columnas que se ven en la app (y que acepta "Cargar histórico").
+function exportarCombustibleExcel(){
+  if(typeof XLSX==='undefined'){ alert('No se pudo cargar la librería de Excel. Revisa tu conexión e intenta de nuevo.'); return; }
+  const lite=(typeof APP_LITE!=='undefined' && APP_LITE);
+  const serial=iso=>{ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||'')); if(!m) return ''; return (Date.UTC(+m[1],+m[2]-1,+m[3])-Date.UTC(1899,11,30))/86400000; };
+  const num=(v,dec)=>{ const n=parseFloat(v); if(v===''||v===null||v===undefined||isNaN(n)) return ''; return dec===undefined?n:Math.round(n*Math.pow(10,dec))/Math.pow(10,dec); };
+  const gastoTxt=r=>{ const g=r.gastoRegistrado; if(!g) return 'Sin registrar';
+    if(g.tipo==='cuenta') return 'Cuenta: '+(typeof accLabel==='function'?accLabel(g.cuenta||''):(g.cuenta||''));
+    if(g.tipo==='tarjeta'){ const t=getTarjeta(g.tarjetaId); return 'Tarjeta: '+(t?(t.banco+(t.cat?' '+t.cat:'')):''); }
+    return 'Registrado aparte'; };
+  const hoja=(key, esGas)=>{
+    const gnv=lite && !esGas;
+    const cab=['F. INICIAL','F. FINAL','KM INICIAL','KM FINAL','KM USADO','DÍAS','KM DIARIOS',
+      gnv?'M3':'GALONES', gnv?'KM/M3':'KXG', gnv?'PXM3':'PXG', gnv?'PRECIO SOLO GNV':'PRECIO', 'MONTO DIARIO'];
+    if(gnv) cab.push('RECAUDO','GNV + RECAUDO');
+    cab.push('% PRECIO','RENDIMIENTO','GASTO');
+    const rows=computeFuelRows(state[key]||[]);
+    const data=[cab];
+    let tKm=0,tCant=0,tTot=0,tRec=0;
+    rows.forEach(r=>{
+      const fila=[serial(r.fInicial), serial(r.fFinal), num(r.kmInicial), num(r.kmFinal), r.kmUsado!==null?r.kmUsado:'', r.dt!==null?r.dt:'',
+        r.kmDiarios!==null?num(r.kmDiarios,1):'', num(r.galones,3), r.kxg!==null?num(r.kxg,2):'', num(r.pxg,4), r.totalGlp!==null?num(r.totalGlp,2):'',
+        r.montoDiario!==null?num(r.montoDiario,2):''];
+      if(gnv) fila.push(r.recaudo>0?num(r.recaudo,2):0, r.totalPagado!==null?num(r.totalPagado,2):'');
+      fila.push(r.pxgVar!==null?num(r.pxgVar,1):'', r.sinRendimiento?'NO':'SI', gastoTxt(r));
+      data.push(fila);
+      if(r.kmUsado!==null&&r.kmUsado>0) tKm+=r.kmUsado;
+      tCant+=parseFloat(r.galones)||0; tTot+=r.totalGlp||0; if(gnv) tRec+=r.recaudo||0;
+    });
+    if(rows.length){
+      const tot=['TOTAL','','','',tKm,'','',num(tCant,3),'','',num(tTot,2),''];
+      if(gnv) tot.push(num(tRec,2), num(tTot+tRec,2));
+      tot.push('','','');
+      data.push([]); data.push(tot);
+    }
+    const ws=XLSX.utils.aoa_to_sheet(data);
+    // Las 2 primeras columnas son fechas (número de serie de Excel) → formato dd/mm/aaaa
+    for(let R=1;R<data.length;R++) for(let C=0;C<2;C++){ const a=XLSX.utils.encode_cell({r:R,c:C}); if(ws[a]&&ws[a].t==='n') ws[a].z='dd/mm/yyyy'; }
+    ws['!cols']=cab.map(c=>({wch:Math.max(10, c.length+2)}));
+    if(ws['!cols'][cab.length-1]) ws['!cols'][cab.length-1].wch=24;
+    return {ws, n:rows.length};
+  };
+  const wb=XLSX.utils.book_new();
+  const a=hoja('combustibleGlp', false), b=hoja('combustibleGas', true);
+  if(!a.n && !b.n){ alert('Todavía no hay recargas para exportar.'); return; }
+  XLSX.utils.book_append_sheet(wb, a.ws, lite?'GNV':'GNV');
+  XLSX.utils.book_append_sheet(wb, b.ws, 'Gasolina');
+  XLSX.writeFile(wb, 'combustible_'+todayLocalISO()+'.xlsx');
+  toast(`Excel descargado: ${a.n} recarga${a.n===1?'':'s'} de ${lite?'GNV':'GNV'} y ${b.n} de gasolina`);
+}
 function _fFecha(d){ if(!d) return '—'; const p=String(d).split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0].slice(2)}`:d; }
 function renderFuelCards(type, rows){
   const cont=document.getElementById('fuel-cards-'+type); if(!cont) return;
@@ -20768,7 +20827,7 @@ function renderFuelCards(type, rows){
   if(tbl) tbl.style.display='none';
   const gnv=type==='glp', u=gnv?'m³':'gal';
   if(!rows.length){
-    cont.innerHTML=sw+`<div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Sin recargas de ${gnv?'GNV':'gasolina'} todavía.<br>Toca «+ Nueva recarga» después de cargar en el grifo, o «📂 Cargar histórico».</div>`;
+    cont.innerHTML=sw+`<div class="card" style="padding:24px;text-align:center;color:var(--text3);font-size:12px">Sin recargas de ${gnv?'GNV':'gasolina'} todavía.<br>Toca «+ Nueva recarga» después de cargar en el grifo.<br>Para subir recargas antiguas: ⚙ Config → Datos → Histórico combustible.</div>`;
     return;
   }
   const inv=rows.slice().reverse();
@@ -26468,6 +26527,14 @@ function seedDemo(){
 // Al publicar una versión nueva: agregar una entrada AL INICIO de APP_CHANGELOG
 // y actualizar APP_VERSION / APP_VERSION_DATE (el aviso compara APP_VERSION_DATE).
 const APP_CHANGELOG = [
+ {
+  "v": "v2.6.0",
+  "fecha": "17/10/26",
+  "cambios": [
+   "Combustible: botón «⬇ Exportar Excel» que descarga todas las recargas (una hoja para GNV y otra para gasolina, con totales).",
+   "«Cargar histórico» se movió a ⚙ Config → Datos → Histórico combustible (GNV o Gasolina)."
+  ]
+ },
  {
   "v": "v2.5.1",
   "fecha": "17/10/26",
